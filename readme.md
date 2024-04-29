@@ -12,6 +12,9 @@ the negative lobes in the interpolation kernel. Lanczos
 resampling may be used to perform operations such as scaling
 and rotation by resampling the input signal.
 
+Lanczos Kernel
+--------------
+
 The Lanczos kernel is defined for a given window.
 
 	L(x,a) = sinc(x)*sinc(x/a) : -a <= x < a
@@ -31,6 +34,9 @@ in other derivations. According to Jim Blinn, the Lanczos
 (a = 3) kernel "keeps low frequencies and rejects high
 frequencies better than any (achievable) filter we've seen
 so far."
+
+Lanczos Interpolation
+---------------------
 
 Lanczos interpolation of a one-dimensional input signal
 s1(x) or two-dimensional input image s1(x,y) is calculated
@@ -91,6 +97,9 @@ coefficient samples to be offset.
 	j    = [0..n2)
 	x    = (j + 0.5)*step - 0.5
 
+Upscaling and Downscaling
+-------------------------
+
 We often want to change from one sampling rate to another.
 The process of representing a signal with more samples is
 called interpolation or upsampling, whereas representing it
@@ -116,6 +125,9 @@ an integer factor as follows.
 	                  s1(floor(x) + j, floor(y) + i)*
 	                  L((j - x + floor(x))/fs,a)*
 	                  L((i - y + floor(y))/fs,a)))
+
+Separability
+------------
 
 The Lanczos kernel is nonseparable, however, in practice
 implementations may choose to perform separate passes in
