@@ -17,10 +17,12 @@ The Lanczos kernel is defined for a given window.
 	L(x,a) = sinc(x)*sinc(x/a) : -a <= x < a
 	       = 0.0               : otherwise
 
-The normalized sinc function is given by.
+Where the normalized sinc function is given by.
 
 	sinc(x) = 1.0              : x = 0.0
 	        = sin(PI*x)/(PI*x) : otherwise
+
+![Lanczos3 Kernel](lanczos3.jpg?raw=true "Lanczos3 Kernel")
 
 The support size (a) corresponds to the number of lobes
 kept in the interpolation function window. Note that the
@@ -78,31 +80,42 @@ output values do not overflow when converted back to
 unsigned bytes of [0,255].
 
 When resampling a signal from n1 samples to n2 samples the
-following sample positions are used. The final -0.5 term in
-the x equation causes the s2() samples to be shifted
-slightly. For example, when downsampling by a factor of two
-(e.g. n1 = 10 and n2 = 5), the first sample position
-x[0] = 0.5. However, this sample corresponds to the input
-range [0,2) so one might expect that the first sample
-position should be x[0] = 1.0. I was unable to find a
-definitive explaination, however, it seems likely that this
-approach is useful in reducing aliasing and/or ringing
-artifacts. Also, if the pixel shift had not been included
-then downsampling would simply match nearest neighbor
-interpolation since L(0.0) = 1.0 and is zero for all other
-integer inputs of L(x).
+following sample positions are used. The index j is used to
+represent the samples from the sampled signal s2(). The term
+(j + 0.5) is the center of a sample in s2(). The step size
+scales a point in s2() to a point in s1(). The final -0.5
+term in x is a phase shift that causes the Lanczos
+coefficient samples to be offset.
 
 	step = n1/n2
 	j    = [0..n2)
 	x    = (j + 0.5)*step - 0.5
 
-When downsampling, the support size (a) is typically scaled
-by the filter scale (fs = n1/n2). I was unable to find a
-definitive explaination, however, it seems likely that this
-approach is necessary to filter high frequency components
-from the input signal. When upscaling, the support size (a)
-does not need to be scaled as high frequency components are
-not being filtered.
+We often want to change from one sampling rate to another.
+The process of representing a signal with more samples is
+called interpolation or upsampling, whereas representing it
+with less is called decimation or downsampling. When
+upsampling, the equations above may be used without any
+changes. However, when downsampling, an additional step must
+be performed to adjust the filter scale (fs). This is
+equivalent to applying a low pass filter to the input signal
+to filter high frequency components. The Lanczos
+interpolation equations may be adjusted for downscaling by
+an integer factor as follows.
+
+	fs = n1/n2
+
+	s2(x) = (1/w(x))*
+	        SUM(i = -(fs*a) + 1, i = (fs*a),
+	            s1(floor(x) + i)*
+	            L((i - x + floor(x))/fs,a))
+
+	s2(x,y) = (1/w(x,y))*
+	          SUM(i = -(fs*a) + 1, i = (fs*a),
+	              SUM(j = -(fs*a) + 1, j = (fs*a),
+	                  s1(floor(x) + j, floor(y) + i)*
+	                  L((j - x + floor(x))/fs,a)*
+	                  L((i - y + floor(y))/fs,a)))
 
 The Lanczos kernel is nonseparable, however, in practice
 implementations may choose to perform separate passes in
@@ -130,8 +143,11 @@ References
 ----------
 
 * [Lanczos Resampling](https://en.wikipedia.org/wiki/Lanczos_resampling)
+* [Downsampling](https://en.wikipedia.org/wiki/Downsampling_(signal_processing))
+* [Upsampling](https://en.wikipedia.org/wiki/Upsampling)
 * [Lanczos interpolation and resampling](https://www.youtube.com/watch?v=ijmd6XyG2HA)
 * [Interpolation Algorithms](https://pixinsight.com/doc/docs/InterpolationAlgorithms/InterpolationAlgorithms.html)
+* [Filters for Common Resampling Tasks](http://www.realitypixels.com/turk/computergraphics/ResamplingFilters.pdf)
 * [Pillow Implementation](https://github.com/python-pillow/Pillow/blob/main/src/libImaging/Resample.c)
 * [imageresampler](https://github.com/richgel999/imageresampler)
 

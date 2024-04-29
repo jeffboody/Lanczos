@@ -109,7 +109,7 @@ int main(int argc, char** argv)
 	int    j;
 	int    n2 = 5;
 	int    fs = n1/n2;
-	int    a  = 3*fs;
+	int    a  = 3;
 	double fsd = (double) fs;
 	double s2;
 	double l;
@@ -123,7 +123,7 @@ int main(int argc, char** argv)
 		x  = (jd + 0.5)*step - 0.5;
 		w  = 0.0;
 		s2 = 0.0;
-		for(i = -a + 1; i < a; ++i)
+		for(i = -(fs*a) + 1; i < (fs*a); ++i)
 		{
 			l   = L((i - x + floor(x))/fsd, a);
 			s1  = S1(floor(x) + i);
