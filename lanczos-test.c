@@ -110,6 +110,7 @@ int main(int argc, char** argv)
 	int    n2 = 5;
 	int    fs = n1/n2;
 	int    a  = 3*fs;
+	double fsd = (double) fs;
 	double s2;
 	double l;
 	double x;
@@ -124,7 +125,7 @@ int main(int argc, char** argv)
 		s2 = 0.0;
 		for(i = -a + 1; i < a; ++i)
 		{
-			l   = L(i - x + floor(x), a);
+			l   = L((i - x + floor(x))/fsd, a);
 			s1  = S1(((int) x) + i);
 			s2 += s1*l;
 			w  += l;
