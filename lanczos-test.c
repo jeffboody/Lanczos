@@ -126,7 +126,7 @@ int main(int argc, char** argv)
 		for(i = -a + 1; i < a; ++i)
 		{
 			l   = L((i - x + floor(x))/fsd, a);
-			s1  = S1(((int) x) + i);
+			s1  = S1(floor(x) + i);
 			s2 += s1*l;
 			w  += l;
 		}
@@ -146,7 +146,7 @@ int main(int argc, char** argv)
 		for(i = -a + 1; i < a; ++i)
 		{
 			l   = L(i - x + floor(x), a);
-			s1  = S1(((int) x) + i);
+			s1  = S1(floor(x) + i);
 			s2 += s1*l;
 			w  += l;
 		}
