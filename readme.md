@@ -3,12 +3,12 @@ Lanczos Resampling
 
 Lanczos (pronounced Lanchos) resampling is similar to the
 well known nearest neighbor and bilinear interpolation
-techniques. Lanczos resampling method features improved
-detail preservation and minimal generation of aliasing
-artifacts. The main drawbacks of Lanczos resampling are
-increased computation costs and the potential for "ringing"
-artifacts which are most visible around sharp edges due to
-the negative lobes in the interpolation kernel. Lanczos
+techniques. Lanczos resampling features improved detail
+preservation and minimal generation of aliasing artifacts.
+The main drawbacks of Lanczos resampling are increased
+computation costs and the potential for "ringing" artifacts
+which are most visible around sharp edges due to the
+negative lobes in the interpolation kernel. Lanczos
 resampling may be used to perform operations such as scaling
 and rotation by resampling the input signal.
 
@@ -28,12 +28,10 @@ Where the normalized sinc function is given by.
 ![Lanczos3 Kernel](lanczos3.jpg?raw=true "Lanczos3 Kernel")
 
 The support size (a) corresponds to the number of lobes
-kept in the interpolation function window. Note that the
-support size may be referred to as the filter size or order
-in other derivations. According to Jim Blinn, the Lanczos
-(a = 3) kernel "keeps low frequencies and rejects high
-frequencies better than any (achievable) filter we've seen
-so far."
+kept in the interpolation function window. According to Jim
+Blinn, the Lanczos (a = 3) kernel "keeps low frequencies and
+rejects high frequencies better than any (achievable) filter
+we've seen so far."
 
 Lanczos Interpolation
 ---------------------
@@ -47,7 +45,7 @@ between indices. The input signal s1() is zero outside of
 the signal or image bounds. In contrast, the sampled signal
 s2() is defined continuously.
 
-	s1(x) = s1(floor(x)) : floor(x) = [0, n1]
+	s1(x) = s1(floor(x)) : floor(x) = [0, n1)
 	      = 0.0          : otherwise
 
 	s2(x) = (1/w(x))*
@@ -56,7 +54,7 @@ s2() is defined continuously.
 	            L(i - x + floor(x),a))
 
 	s1(x,y) = s1(floor(x), floor(y)) :
-	          (floor(x), floor(y)) = ([0, w], [0,h))
+	          (floor(x), floor(y)) = ([0, w1), [0,h1))
 	        = 0.0                    : otherwise
 
 	s2(x,y) = (1/w(x,y))*
@@ -88,17 +86,17 @@ unsigned bytes of [0,255].
 When resampling a signal from n1 samples to n2 samples the
 following sample positions are used. The index j is used to
 represent the samples from the sampled signal s2(). The term
-(j + 0.5) is the center of a sample in s2(). The step size
-scales a point in s2() to a point in s1(). The final -0.5
-term in x is a phase shift that causes the Lanczos
-coefficient samples to be offset.
+(j + 0.5) is the center of a sample in s2(). The step scales
+a point in s2() to a point in s1(). The final -0.5 term in x
+is a phase shift that causes the Lanczos coefficient samples
+to be offset.
 
 	step = n1/n2
 	j    = [0..n2)
 	x    = (j + 0.5)*step - 0.5
 
-Upscaling and Downscaling
--------------------------
+Upsampling and Downsampling
+---------------------------
 
 We often want to change from one sampling rate to another.
 The process of representing a signal with more samples is
@@ -109,7 +107,7 @@ changes. However, when downsampling, an additional step must
 be performed to adjust the filter scale (fs). This is
 equivalent to applying a low pass filter to the input signal
 to filter high frequency components. The Lanczos
-interpolation equations may be adjusted for downscaling by
+interpolation equations may be adjusted for downsampling by
 an integer factor as follows.
 
 	fs = n1/n2
@@ -126,49 +124,53 @@ an integer factor as follows.
 	                  L((j - x + floor(x))/fs,a)*
 	                  L((i - y + floor(y))/fs,a)))
 
-When upscaling by a power-of-two, the Lanczos kernel cycles
+When upsampling by a power-of-two, the Lanczos kernel cycles
 between 2^level sets of values. For example, consider the
-first 4 outputs of the lanzcos-test upscale example. Notice
-that the outputs for L() repeats for j={0,2} and j={1,3}.
+first 4 outputs of the lanzcos-test upsample example. Notice
+that the outputs for L() repeat for j={0,2} and j={1,3}.
 
-	upscale 2x
+	upsample n1=10, n2=20
 	j=0, x=-0.250000
 	i=-2, L(-2.750000)=0.007356, S1(-3.000000)=0.000000
 	i=-1, L(-1.750000)=-0.067791, S1(-2.000000)=0.000000
 	i=0, L(-0.750000)=0.270190, S1(-1.000000)=0.000000
 	i=1, L(0.250000)=0.890067, S1(0.000000)=0.100000
 	i=2, L(1.250000)=-0.132871, S1(1.000000)=0.300000
-	s2=0.050825, w=0.966950
+	i=3, L(2.250000)=0.030021, S1(2.000000)=0.400000
+	s2=0.061340, w=0.996972
 	j=1, x=0.250000
 	i=-2, L(-2.250000)=0.030021, S1(-2.000000)=0.000000
 	i=-1, L(-1.250000)=-0.132871, S1(-1.000000)=0.000000
 	i=0, L(-0.250000)=0.890067, S1(0.000000)=0.100000
 	i=1, L(0.750000)=0.270190, S1(1.000000)=0.300000
 	i=2, L(1.750000)=-0.067791, S1(2.000000)=0.400000
-	s2=0.144447, w=0.989616
+	i=3, L(2.750000)=0.007356, S1(3.000000)=0.300000
+	s2=0.145595, w=0.996972
 	j=2, x=0.750000
 	i=-2, L(-2.750000)=0.007356, S1(-2.000000)=0.000000
 	i=-1, L(-1.750000)=-0.067791, S1(-1.000000)=0.000000
 	i=0, L(-0.750000)=0.270190, S1(0.000000)=0.100000
 	i=1, L(0.250000)=0.890067, S1(1.000000)=0.300000
 	i=2, L(1.250000)=-0.132871, S1(2.000000)=0.400000
-	s2=0.249124, w=0.966950
+	i=3, L(2.250000)=0.030021, S1(3.000000)=0.300000
+	s2=0.250656, w=0.996972
 	j=3, x=1.250000
 	i=-2, L(-2.250000)=0.030021, S1(-1.000000)=0.000000
 	i=-1, L(-1.250000)=-0.132871, S1(0.000000)=0.100000
 	i=0, L(-0.250000)=0.890067, S1(1.000000)=0.300000
 	i=1, L(0.750000)=0.270190, S1(2.000000)=0.400000
 	i=2, L(1.750000)=-0.067791, S1(3.000000)=0.300000
-	s2=0.345055, w=0.989616
+	i=3, L(2.750000)=0.007356, S1(4.000000)=0.200000
+	s2=0.343984, w=0.996972
 
-When downscaling by a power-of-two, the Lanczos kernel
+When downsampling by a power-of-two, the Lanczos kernel
 becomes independent of x since (x - floor(x)) becomes a
 constant which matches the phase shift. For example,
 consider the first 2 outputs of the lanzcos-test
-downscale example. Notice that the the outputs of L()
-repeats for each j.
+downsample example. Notice that the outputs of L()
+repeat for each j.
 
-	downscale 2x
+	downsample n1=10, n2=5
 	j=0, x=0.500000
 	i=-5, L(-5.500000)=0.007356, S1(-5.000000)=0.000000
 	i=-4, L(-4.500000)=0.030021, S1(-4.000000)=0.000000
@@ -181,7 +183,8 @@ repeats for each j.
 	i=3, L(2.500000)=-0.132871, S1(3.000000)=0.300000
 	i=4, L(3.500000)=-0.067791, S1(4.000000)=0.200000
 	i=5, L(4.500000)=0.030021, S1(5.000000)=0.400000
-	s2=0.212773, w=1.986587
+	i=6, L(5.500000)=0.007356, S1(6.000000)=0.600000
+	s2=0.214201, w=1.993943
 	j=1, x=2.500000
 	i=-5, L(-5.500000)=0.007356, S1(-3.000000)=0.000000
 	i=-4, L(-4.500000)=0.030021, S1(-2.000000)=0.000000
@@ -194,7 +197,8 @@ repeats for each j.
 	i=3, L(2.500000)=-0.132871, S1(5.000000)=0.400000
 	i=4, L(3.500000)=-0.067791, S1(6.000000)=0.600000
 	i=5, L(4.500000)=0.030021, S1(7.000000)=0.800000
-	s2=0.339803, w=1.986587
+	i=6, L(5.500000)=0.007356, S1(8.000000)=0.900000
+	s2=0.341870, w=1.993943
 
 As a result, the Lanczos kernel may be precomputed for these
 cases to eliminate the expensive sinc function computation

@@ -105,8 +105,7 @@ int main(int argc, char** argv)
 		fprintf(fs1, "%lf %lf\n", (double) (i + 1), s1);
 	}
 
-	// downscale 2x
-	printf("downscale 2x\n");
+	// downsample
 	int    j;
 	int    n2 = 5;
 	int    fs = n1/n2;
@@ -118,6 +117,7 @@ int main(int argc, char** argv)
 	double w;
 	double jd;
 	double step = ((double) n1)/((double) n2);
+	printf("downsample n1=%i, n2=%i\n", n1, n2);
 	for(j = 0; j < n2; ++j)
 	{
 		jd = (double) j;
@@ -125,7 +125,7 @@ int main(int argc, char** argv)
 		w  = 0.0;
 		s2 = 0.0;
 		printf("j=%i, x=%lf\n", j, x);
-		for(i = -(fs*a) + 1; i < (fs*a); ++i)
+		for(i = -(fs*a) + 1; i <= (fs*a); ++i)
 		{
 			l   = L((i - x + floor(x))/fsd, a);
 			s1  = S1(floor(x) + i);
@@ -139,12 +139,13 @@ int main(int argc, char** argv)
 		printf("s2=%lf, w=%lf\n", s2/w, w);
 		fprintf(fs2d, "%lf %lf %lf\n", x, s2/w, w);
 	}
+	printf("\n");
 
-	// upscale 2x
-	printf("\nupscale 2x\n");
+	// upsample
 	n2   = 20;
 	a    = 3;
 	step = ((double) n1)/((double) n2);
+	printf("upsample n1=%i, n2=%i\n", n1, n2);
 	for(j = 0; j < n2; ++j)
 	{
 		jd = (double) j;
@@ -152,7 +153,7 @@ int main(int argc, char** argv)
 		w  = 0.0;
 		s2 = 0.0;
 		printf("j=%i, x=%lf\n", j, x);
-		for(i = -a + 1; i < a; ++i)
+		for(i = -a + 1; i <= a; ++i)
 		{
 			l   = L(i - x + floor(x), a);
 			s1  = S1(floor(x) + i);
