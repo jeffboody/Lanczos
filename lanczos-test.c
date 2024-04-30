@@ -105,7 +105,8 @@ int main(int argc, char** argv)
 		fprintf(fs1, "%lf %lf\n", (double) (i + 1), s1);
 	}
 
-	// downscale
+	// downscale 2x
+	printf("downscale 2x\n");
 	int    j;
 	int    n2 = 5;
 	int    fs = n1/n2;
@@ -123,17 +124,24 @@ int main(int argc, char** argv)
 		x  = (jd + 0.5)*step - 0.5;
 		w  = 0.0;
 		s2 = 0.0;
+		printf("j=%i, x=%lf\n", j, x);
 		for(i = -(fs*a) + 1; i < (fs*a); ++i)
 		{
 			l   = L((i - x + floor(x))/fsd, a);
 			s1  = S1(floor(x) + i);
+			printf("i=%i, L(%lf)=%lf, S1(%lf)=%f\n",
+			       i,
+			       (double) (i - x + floor(x)), l,
+			       (double) (floor(x) + i), s1);
 			s2 += s1*l;
 			w  += l;
 		}
+		printf("s2=%lf, w=%lf\n", s2/w, w);
 		fprintf(fs2d, "%lf %lf %lf\n", x, s2/w, w);
 	}
 
-	// upscale
+	// upscale 2x
+	printf("\nupscale 2x\n");
 	n2   = 20;
 	a    = 3;
 	step = ((double) n1)/((double) n2);
@@ -143,13 +151,19 @@ int main(int argc, char** argv)
 		x  = (jd + 0.5)*step - 0.5;
 		w  = 0.0;
 		s2 = 0.0;
+		printf("j=%i, x=%lf\n", j, x);
 		for(i = -a + 1; i < a; ++i)
 		{
 			l   = L(i - x + floor(x), a);
 			s1  = S1(floor(x) + i);
+			printf("i=%i, L(%lf)=%lf, S1(%lf)=%f\n",
+			       i,
+			       (double) (i - x + floor(x)), l,
+			       (double) (floor(x) + i), s1);
 			s2 += s1*l;
 			w  += l;
 		}
+		printf("s2=%lf, w=%lf\n", s2/w, w);
 		fprintf(fs2u, "%lf %lf %lf\n", x, s2/w, w);
 	}
 
