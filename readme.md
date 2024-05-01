@@ -36,26 +36,41 @@ we've seen so far."
 Lanczos Interpolation
 ---------------------
 
-Lanczos interpolation of a one-dimensional input signal
-s1(x) or two-dimensional input image s1(x,y) is calculated
-as follows. Keep in mind that the input signal s1() is only
-defined at discrete indices, however, it may also be viewed
-as a continuous step function whose values are constant
-between indices. The input signal s1() is zero outside of
-the signal or image bounds. In contrast, the sampled signal
-s2() is defined continuously.
+Lanczos interpolation may be performed on a one-dimensional
+input signal s1(x) or two-dimensional input image s1(x,y)
+The term signal will henceforth apply to images. Keep in
+mind that the input signal s1() is only defined at discrete
+indices, however, it may also be viewed as a continuous step
+function whose values are constant between indices. The
+Lanczos interpolation causes the input signal s1() to be
+sampled beyond its bounds. In this case, samples outside the
+bounds may be zero or clamped to the edge of s1(). The
+notation s1() indicates that the input signal is accessed
+continuously while s1[] indicates that the input signal is
+accessed by index.
 
-	s1(x) = s1(floor(x)) : floor(x) = [0, n1)
-	      = 0.0          : otherwise
+	# zero outside bounds
+	s1(x) = s1[floor(x)] :
+	        x = [0, n1)
+	      = 0.0 : otherwise
+
+	s1(x,y) = s1[floor(x), floor(y)] :
+	          x = [0, w1), y = [0,h1)
+	        = 0.0 : otherwise
+
+	# clamp-to-edge outside bounds
+	s1(x) = s1[clamp(floor(x), 0, n1 - 1)]
+
+	s1(x,y) = s1[clamp(floor(x), 0, w1 - 1),
+	             clamp(floor(y), 0, h1 - 1)]
+
+In contrast, the sampled signal s2() is defined continuously
+and may be calculated as follows.
 
 	s2(x) = (1/w(x))*
 	        SUM(i = -a + 1, i = a,
 	            s1(floor(x) + i)*
 	            L(i - x + floor(x),a))
-
-	s1(x,y) = s1(floor(x), floor(y)) :
-	          (floor(x), floor(y)) = ([0, w1), [0,h1))
-	        = 0.0                    : otherwise
 
 	s2(x,y) = (1/w(x,y))*
 	          SUM(i = -a + 1, i = a,
