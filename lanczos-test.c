@@ -131,12 +131,12 @@ int main(int argc, char** argv)
 			s1  = S1(floor(x) + i);
 			printf("i=%i, L(%lf)=%lf, S1(%lf)=%f\n",
 			       i,
-			       (double) (i - x + floor(x)), l,
+			       (double) (i - x + floor(x))/fsd, l,
 			       (double) (floor(x) + i), s1);
 			s2 += s1*l;
 			w  += l;
 		}
-		printf("s2=%lf, w=%lf\n", s2/w, w);
+		printf("s2=%lf, s2/w=%lf, w=%lf\n", s2, s2/w, w);
 		fprintf(fs2d, "%lf %lf %lf\n", x, s2/w, w);
 	}
 	printf("\n");
@@ -164,7 +164,7 @@ int main(int argc, char** argv)
 			s2 += s1*l;
 			w  += l;
 		}
-		printf("s2=%lf, w=%lf\n", s2/w, w);
+		printf("s2=%lf, s2/w=%lf, w=%lf\n", s2, s2/w, w);
 		fprintf(fs2u, "%lf %lf %lf\n", x, s2/w, w);
 	}
 
