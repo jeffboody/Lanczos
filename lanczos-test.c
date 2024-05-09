@@ -25,6 +25,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+// clamp-to-edge outside bounds or
+// zero outside bounds
+#define LANCZOS_USE_CLAMP_TO_EDGE
+
 /***********************************************************
 * private                                                  *
 ***********************************************************/
@@ -59,10 +63,23 @@ static double S1(int i)
 		0.4, 0.6, 0.8, 0.9, 0.7,
 	};
 
-	if((i < 0) || (i >= 10))
-	{
-		return 0.0;
-	}
+	#ifdef LANCZOS_USE_CLAMP_TO_EDGE
+		// clamp-to-edge outside bounds
+		if(i < 0)
+		{
+			i = 0;
+		}
+		else if(i >= 10)
+		{
+			i = 9;
+		}
+	#else
+		// zero outside bounds
+		if((i < 0) || (i >= 10))
+		{
+			return 0.0;
+		}
+	#endif
 
 	return s1[i];
 }
