@@ -1,129 +1,116 @@
 Lanczos Resampling
 ==================
 
-Lanczos (pronounced Lanchos) resampling is similar to the
-well known nearest neighbor and bilinear interpolation
-techniques. Lanczos resampling features improved detail
-preservation and minimal generation of aliasing artifacts.
-The main drawbacks of Lanczos resampling are increased
-computation costs and the potential for "ringing" artifacts
-which are most visible around sharp edges due to the
-negative lobes in the interpolation kernel. Lanczos
-resampling may be used to perform operations such as scaling
-and rotation by resampling the input signal.
+Introduction
+------------
+
+Lanczos (pronounced Lanchos) resampling is a sophisticated
+technique for interpolating digital signals, offering
+superior image quality compared to simpler methods like
+nearest neighbor and bilinear interpolation. By effectively
+preserving detail and minimizing aliasing artifacts, Lanczos
+resampling is widely used in image and signal processing
+applications.
+
+While Lanczos excels in image quality, it comes at the cost
+of increased computational complexity. Additionally, the
+potential for "ringing" artifacts, particularly around sharp
+edges, can be a drawback. Despite these challenges, Lanczos
+remains a preferred choice for tasks such as image scaling
+and rotation due to its overall performance benefits.
+
+This document provides a comprehensive overview of Lanczos
+resampling, including its theoretical underpinnings,
+implementation details, and practical applications. It
+serves as a valuable resource for developers and researchers
+seeking to understand and utilize this powerful technique.
+The subsequent sections delve into crucial aspects of
+Lanczos resampling, such as the Lanczos kernel,
+interpolation and resampling processes, flux preservation,
+upsampling, downsampling, sample positioning, output range,
+multidimensional interpolation, and separability. A
+practical example with accompanying source code is included.
 
 Lanczos Kernel
 --------------
 
-The Lanczos kernel is defined for a given window.
+The
+[Lanczos kernel](https://en.wikipedia.org/wiki/Lanczos_resampling),
+defined for a given support size, is a function used in
+Lanczos resampling. The kernel is defined as:
 
-	L(x,a) = sinc(x)*sinc(x/a) : -a <= x < a
-	       = 0.0               : otherwise
+	L(x, a) = sinc(x)*sinc(x/a) : -a < x < a
+	        = 0.0               : otherwise
 
-Where the normalized sinc function is given by.
+Where:
+
+* x is an independent variable evaluated over the Lanczos
+  window
+* a is the support size of the kernel, controlling the width
+
+The normalized sinc function is defined as:
 
 	sinc(x) = 1.0              : x = 0.0
 	        = sin(PI*x)/(PI*x) : otherwise
 
 ![Lanczos3 Kernel](lanczos3.jpg?raw=true "Lanczos3 Kernel")
 
-The support size (a) corresponds to the number of lobes
-kept in the interpolation function window. According to Jim
-Blinn, the Lanczos (a = 3) kernel "keeps low frequencies and
-rejects high frequencies better than any (achievable) filter
-we've seen so far."
+The graph illustrates the shape of the Lanczos kernel for a
+support size of a = 3. This means the kernel includes three
+lobes of the sinc function. While increasing the support
+size (a) generally provides more flexibility for shaping the
+frequency response, it also increases computational cost. A
+balance must be struck between image quality and
+computational efficiency when choosing the support size. Jim
+Blinn's finding that the Lanczos kernel with a = 3 offers an
+excellent balance of low-frequency preservation and
+high-frequency rejection supports this notion.
 
-Lanczos Interpolation
----------------------
+Note: The terms "kernel width," "support size," and
+"filter size" are often used interchangeably to describe the
+parameter a. However, in the context of Lanczos resampling,
+"support size" most accurately reflects the concept.
 
-Lanczos interpolation may be performed on a one-dimensional
-input signal s1(x) or two-dimensional input image s1(x,y)
-The term signal will henceforth apply to images. Keep in
-mind that the input signal s1() is only defined at discrete
-indices, however, it may also be viewed as a continuous step
-function whose values are constant between indices. The
-Lanczos interpolation causes the input signal s1() to be
-sampled beyond its bounds. In this case, samples outside the
-bounds may be zero or clamped to the edge of s1(). The
-notation s1() indicates that the input signal is accessed
-continuously while s1[] indicates that the input signal is
-accessed by index.
+Lanczos Interpolation and Resampling
+------------------------------------
 
-	# zero outside bounds
-	s1(x) = s1[floor(x)] :
-	        x = [0, n1)
-	      = 0.0 : otherwise
+Lanczos interpolation is a technique used to resample a
+discrete signal to a new sampling rate. It achieves this by
+convolving the original signal with a Lanczos kernel.
 
-	s1(x,y) = s1[floor(x), floor(y)] :
-	          x = [0, w1), y = [0,h1)
-	        = 0.0 : otherwise
-
-	# clamp-to-edge outside bounds
-	s1(x) = s1[clamp(floor(x), 0, n1 - 1)]
-
-	s1(x,y) = s1[clamp(floor(x), 0, w1 - 1),
-	             clamp(floor(y), 0, h1 - 1)]
-
-In contrast, the sampled signal s2() is defined continuously
-and may be calculated as follows.
+The interpolated signal s2(x) can be calculated as follows:
 
 	s2(x) = (1/w(x))*
 	        SUM(i = -a + 1, i = a,
 	            s1(floor(x) + i)*
 	            L(i - x + floor(x),a))
 
-	s2(x,y) = (1/w(x,y))*
-	          SUM(i = -a + 1, i = a,
-	              SUM(j = -a + 1, j = a,
-	                  s1(floor(x) + j, floor(y) + i)*
-	                  L(j - x + floor(x),a)*
-	                  L(i - y + floor(y),a)))
+Where:
 
-The filter weight (w) is required to preserve flux (the
-partition of unity property) as the sum is only an
-approximation of the infinite Lanczos kernel.
+* s1(x) is the original input signal, treated as a
+  continuous function
+* w(x) is a normalization factor to preserve flux
 
-	w(x) = SUM(i = -a + 1, i = a,
-	           L(i - x + floor(x),a))
+Preserving Flux:
 
-	w(x,y) = SUM(i = -a + 1, i = a,
-	             SUM(j = -a + 1, j = a,
-	                 L(j - x + floor(x),a)*
-	                 L(i - y + floor(y),a)))
+The normalization factor w(x) is crucial for preserving the
+overall signal energy or mass during the interpolation
+process. It ensures that the sum of the interpolated values
+approximates the sum of the original samples. The filter
+weight is calculated as:
 
-The range of s2() may be greater than that of s1() due to
-the lobes of L(). For example, an input signal s1()
-corresponding to pixel colors in the range of [0.0,1.0]
-need to be clamped to the same range to ensure that the
-output values do not overflow when converted back to
-unsigned bytes of [0,255].
+	w(x) = SUM(i = -a + 1, i = a, L(i - x + floor(x), a))
 
-When resampling a signal from n1 samples to n2 samples the
-following sample positions are used. The index j is used to
-represent the samples from the sampled signal s2(). The term
-(j + 0.5) is the center of a sample in s2(). The step scales
-a point in s2() to a point in s1(). The final -0.5 term in x
-is a phase shift that causes the Lanczos coefficient samples
-to be offset.
+Upsampling:
 
-	step = n1/n2
-	j    = [0..n2)
-	x    = (j + 0.5)*step - 0.5
+When increasing the sampling rate, the Lanczos interpolation
+equation can be used directly without modifications.
 
-Upsampling and Downsampling
----------------------------
+Downsampling:
 
-We often want to change from one sampling rate to another.
-The process of representing a signal with more samples is
-called interpolation or upsampling, whereas representing it
-with less is called decimation or downsampling. When
-upsampling, the equations above may be used without any
-changes. However, when downsampling, an additional step must
-be performed to adjust the filter scale (fs). This is
-equivalent to applying a low pass filter to the input signal
-to filter high frequency components. The Lanczos
-interpolation equations may be adjusted for downsampling by
-an integer factor as follows.
+To avoid aliasing artifacts when decreasing the sampling
+rate, the filter scale must be adjusted to match the new
+sampling rate.
 
 	fs = n1/n2
 
@@ -132,12 +119,169 @@ an integer factor as follows.
 	            s1(floor(x) + i)*
 	            L((i - x + floor(x))/fs,a))
 
-	s2(x,y) = (1/w(x,y))*
-	          SUM(i = -(fs*a) + 1, i = (fs*a),
-	              SUM(j = -(fs*a) + 1, j = (fs*a),
-	                  s1(floor(x) + j, floor(y) + i)*
-	                  L((j - x + floor(x))/fs,a)*
-	                  L((i - y + floor(y))/fs,a)))
+Where:
+
+* fs is the downsampling factor
+* n1 is the number of samples in the original signal
+* n2 is the number of samples in the interpolated signal
+
+Sample Positions
+----------------
+
+When resampling a signal from n1 samples to n2 samples the
+following sample positions are used. The index j is used to
+represent the samples from the sampled signal s2(x). The
+term (j + 0.5) is the center of a sample in s2(x). The step
+scales a point in s2(x) to a point in s1(x). The final -0.5
+term in x is a phase shift that causes the Lanczos
+coefficient samples to be offset.
+
+	step = n1/n2
+	j    = [0..n2)
+	x    = (j + 0.5)*step - 0.5
+
+Edge Handling
+-------------
+
+When performing Lanczos interpolation, special care must be
+taken at the signal boundaries. Common edge handling
+techniques include:
+
+* Zero padding: Extending the signal with zeros outside its
+  original range.
+* Clamping: Assigning the edge values to samples outside the
+  signal boundaries.
+* Mirroring: Reflecting the signal at the boundaries.
+* Repeating: Repeating the edge values multiple times.
+
+Clamping is often preferred as it reduces edge artifacts
+caused by sharp discontinuities near the edges. However, the
+choice of edge handling method depends on the specific
+application and desired output.
+
+Zero Padding:
+
+	s1(x) = s1[floor(x)] : x = [0, n1)
+	      = 0.0          : otherwise
+
+Clamping:
+
+	s1(x) = s1[clamp(floor(x), 0, n1 - 1)]
+
+Output Range
+------------
+
+The range of s2(x) may be greater than that of s1(x) due to
+the lobes of L(x, a). For example, an input signal s1(x)
+corresponding to pixel colors in the range of [0.0,1.0]
+need to be clamped to the same range to ensure that the
+output values do not overflow when converted back to
+unsigned bytes of [0,255].
+
+Multidimensional Interpolation
+------------------------------
+
+The Lanczos kernel can be extended to multiple dimensions to
+perform interpolation on images or higher-dimensional data.
+Unlike some interpolation methods, the Lanczos kernel is
+non-separable, meaning it cannot be factored into the
+product of one-dimensional kernels.
+
+The two-dimensional Lanczos kernel is defined as:
+
+	L(x, y) = sinc(sqrt(x^2 + y^2))*sinc(sqrt(x^2 + y^2)/a)
+
+The interpolated signal s2(x, y) can be calculated using the
+following formula:
+
+	s2(x, y) = (1/w(x, y))*
+	           SUM(i = -a + 1, i = a,
+	               SUM(j = -a + 1, j = a,
+	                   s1(floor(x) + j, floor(y) + i)*
+	                   L(j - x + floor(x), i - y + floor(y), a)))
+
+Where w(x, y) is the normalization factor calculated using
+the two-dimensional Lanczos kernel.
+
+By using the correct multidimensional Lanczos kernel, you
+can achieve higher quality interpolation results compared to
+separable approximations.
+
+Separability
+------------
+
+The Lanczos kernel is non-separable, meaning it cannot be
+factored into the product of two one-dimensional functions.
+This property generally leads to higher computational costs
+compared to separable kernels.
+
+To improve performance, some implementations approximate the
+Lanczos kernel with separable kernels or perform separate
+passes for the horizontal and vertical dimensions. However,
+this approximation introduces artifacts and reduces image
+quality compared to using the full two-dimensional Lanczos
+kernel.
+
+Horizontal Interpolation:
+
+* Apply the one-dimensional Lanczos kernel to each row of
+  the input signal s1(x, y).
+* This produces an intermediate result, s2(x, y).
+
+Vertical Interpolation:
+
+* Apply the one-dimensional Lanczos kernel to each column of
+  the intermediate result s2(x, y).
+* This produces the final interpolated signal, s3(x, y).
+
+Mathematical Representation:
+
+	s2(x, y) = (1/w(x))*
+	           SUM(j = -a + 1, j = a,
+	               s1(floor(x) + j, y)*
+	               L(j - x + floor(x), a))
+
+	s3(x, y) = (1/w(y))*
+	           SUM(i = -a + 1, i = a,
+	               s2(i, y)*
+	               L(i - y + floor(y), a))
+
+Note that the normalization factors w(x) and w(y) are
+calculated using the one-dimensional Lanczos kernel.
+
+Key Points
+
+* The separable approximation significantly reduces
+  computational cost compared to the full two-dimensional
+  Lanczos interpolation.
+* However, it introduces artifacts due to the loss of
+  information from the non-separable components of the
+  Lanczos kernel.
+* The choice between the full Lanczos interpolation and the
+  separable approximation depends on the specific
+  application's requirements for image quality and
+  computational efficiency.
+
+Similarly, recursively resampling a signal multiple times,
+as commonly done for generating texture mipmaps, can also
+degrade image quality due to the accumulation of errors
+from each resampling step.
+
+Example
+-------
+
+Run the lancos-test example and use gnuplot to see how
+Lanczos resampling affects a simple one-dimensional signal
+when upsampled and downsampled by a factor of 2.
+
+	make
+	./lanczos-test
+	gnuplot
+	> load "output.plot"
+
+![Example](output.jpg?raw=true "Example")
+
+Upsampling:
 
 When upsampling by a power-of-two, the Lanczos kernel cycles
 between 2^level sets of values. For example, consider the
@@ -178,6 +322,8 @@ that the outputs for L() repeat for j={0,2} and j={1,3}.
 	i=3, L(2.750000)=0.007356, S1(4.000000)=0.200000
 	s2=0.345945, s2/w=0.346996, w=0.996972
 
+Downsampling:
+
 When downsampling by a power-of-two, the Lanczos kernel
 becomes independent of x since (x - floor(x)) becomes a
 constant which matches the phase shift. For example,
@@ -215,41 +361,19 @@ repeat for each j.
 	i=6, L(2.750000)=0.007356, S1(8.000000)=0.900000
 	s2=0.678627, s2/w=0.340344, w=1.993943
 
-As a result, the Lanczos kernel may be precomputed for these
-cases to eliminate the expensive sinc function computation
-cost.
-
-Separability
-------------
-
-The Lanczos kernel is nonseparable, however, in practice
-implementations may choose to perform separate passes in
-order to improve performance at a small reduction to
-quality. Similarly, recursively resampling a signal multiple
-times (e.g. for texture mipmap LODs) reduces the quality
-compared to resizing the original signal to multiple scales.
-Both options should be considered depending on the quality
-and performance requirements.
-
-Example
--------
-
-Run the lancos-test example and use gnuplot to see how
-Lanczos resampling affects a one-dimensional signal.
-
-	make
-	./lanczos-test
-	gnuplot
-	> load "output.plot"
-
-![Example](output.jpg?raw=true "Example")
+As a further optimization, the Lanczos kernel may be
+precomputed for these cases to eliminate the expensive sinc
+function computation.
 
 References
 ----------
 
+This README was created with the assistance of
+(Google Gemini)[https://gemini.google.com/].
+
+Additional references include:
+
 * [Lanczos Resampling](https://en.wikipedia.org/wiki/Lanczos_resampling)
-* [Downsampling](https://en.wikipedia.org/wiki/Downsampling_(signal_processing))
-* [Upsampling](https://en.wikipedia.org/wiki/Upsampling)
 * [Lanczos interpolation and resampling](https://www.youtube.com/watch?v=ijmd6XyG2HA)
 * [Interpolation Algorithms](https://pixinsight.com/doc/docs/InterpolationAlgorithms/InterpolationAlgorithms.html)
 * [Filters for Common Resampling Tasks](http://www.realitypixels.com/turk/computergraphics/ResamplingFilters.pdf)

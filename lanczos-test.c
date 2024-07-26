@@ -45,7 +45,7 @@ static double sinc(double x)
 
 static double L(double x, double a)
 {
-	if((-a <= x) && (x < a))
+	if((-a < x) && (x < a))
 	{
 		return sinc(x)*sinc(x/a);
 	}
