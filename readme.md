@@ -39,8 +39,8 @@ The
 defined for a given support size, is a function used in
 Lanczos resampling. The kernel is defined as:
 
-	L(x, a) = sinc(x)*sinc(x/a) : -a < x < a
-	        = 0.0               : otherwise
+	L(x) = sinc(x)*sinc(x/a) : -a < x < a
+	     = 0.0               : otherwise
 
 Where:
 
@@ -83,7 +83,7 @@ The interpolated signal s2(x) can be calculated as follows:
 	s2(x) = (1/w(x))*
 	        SUM(i = -a + 1, i = a,
 	            s1(floor(x) + i)*
-	            L(i - x + floor(x),a))
+	            L(i - x + floor(x)))
 
 Where:
 
@@ -99,7 +99,7 @@ process. It ensures that the sum of the interpolated values
 approximates the sum of the original samples. The filter
 weight is calculated as:
 
-	w(x) = SUM(i = -a + 1, i = a, L(i - x + floor(x), a))
+	w(x) = SUM(i = -a + 1, i = a, L(i - x + floor(x)))
 
 Upsampling:
 
@@ -117,7 +117,7 @@ sampling rate.
 	s2(x) = (1/w(x))*
 	        SUM(i = -(fs*a) + 1, i = (fs*a),
 	            s1(floor(x) + i)*
-	            L((i - x + floor(x))/fs,a))
+	            L((i - x + floor(x))/fs))
 
 Where:
 
@@ -154,11 +154,6 @@ techniques include:
 * Mirroring: Reflecting the signal at the boundaries.
 * Repeating: Repeating the edge values multiple times.
 
-Clamping is often preferred as it reduces edge artifacts
-caused by sharp discontinuities near the edges. However, the
-choice of edge handling method depends on the specific
-application and desired output.
-
 Zero Padding:
 
 	s1(x) = s1[floor(x)] : x = [0, n1)
@@ -168,11 +163,16 @@ Clamping:
 
 	s1(x) = s1[clamp(floor(x), 0, n1 - 1)]
 
+Clamping is often preferred as it reduces edge artifacts
+caused by sharp discontinuities near the edges. However, the
+choice of edge handling method depends on the specific
+application and desired output.
+
 Output Range
 ------------
 
 The range of s2(x) may be greater than that of s1(x) due to
-the lobes of L(x, a). For example, an input signal s1(x)
+the lobes of L(x). For example, an input signal s1(x)
 corresponding to pixel colors in the range of [0.0,1.0]
 need to be clamped to the same range to ensure that the
 output values do not overflow when converted back to
@@ -183,9 +183,6 @@ Multidimensional Interpolation
 
 The Lanczos kernel can be extended to multiple dimensions to
 perform interpolation on images or higher-dimensional data.
-Unlike some interpolation methods, the Lanczos kernel is
-non-separable, meaning it cannot be factored into the
-product of one-dimensional kernels.
 
 The two-dimensional Lanczos kernel is defined as:
 
@@ -198,29 +195,21 @@ following formula:
 	           SUM(i = -a + 1, i = a,
 	               SUM(j = -a + 1, j = a,
 	                   s1(floor(x) + j, floor(y) + i)*
-	                   L(j - x + floor(x), i - y + floor(y), a)))
+	                   L(j - x + floor(x), i - y + floor(y))))
 
 Where w(x, y) is the normalization factor calculated using
 the two-dimensional Lanczos kernel.
 
-By using the correct multidimensional Lanczos kernel, you
-can achieve higher quality interpolation results compared to
-separable approximations.
-
 Separability
 ------------
 
-The Lanczos kernel is non-separable, meaning it cannot be
-factored into the product of two one-dimensional functions.
-This property generally leads to higher computational costs
-compared to separable kernels.
-
-To improve performance, some implementations approximate the
-Lanczos kernel with separable kernels or perform separate
-passes for the horizontal and vertical dimensions. However,
-this approximation introduces artifacts and reduces image
-quality compared to using the full two-dimensional Lanczos
-kernel.
+Unlike some interpolation methods, the Lanczos kernel is
+non-separable, meaning it cannot be factored into the
+product of one-dimensional kernels. This property generally
+leads to higher computational costs compared to separable
+kernels. To improve performance, some implementations
+approximate the Lanczos kernel by performing separate passes
+for the horizontal and vertical dimensions.
 
 Horizontal Interpolation:
 
@@ -239,17 +228,17 @@ Mathematical Representation:
 	s2(x, y) = (1/w(x))*
 	           SUM(j = -a + 1, j = a,
 	               s1(floor(x) + j, y)*
-	               L(j - x + floor(x), a))
+	               L(j - x + floor(x)))
 
 	s3(x, y) = (1/w(y))*
 	           SUM(i = -a + 1, i = a,
-	               s2(i, y)*
-	               L(i - y + floor(y), a))
+	               s2(x, floor(y) + i)*
+	               L(i - y + floor(y)))
 
 Note that the normalization factors w(x) and w(y) are
 calculated using the one-dimensional Lanczos kernel.
 
-Key Points
+Key Points:
 
 * The separable approximation significantly reduces
   computational cost compared to the full two-dimensional
@@ -259,8 +248,8 @@ Key Points
   Lanczos kernel.
 * The choice between the full Lanczos interpolation and the
   separable approximation depends on the specific
-  application's requirements for image quality and
-  computational efficiency.
+  application's requirements for quality and computational
+  efficiency.
 
 Similarly, recursively resampling a signal multiple times,
 as commonly done for generating texture mipmaps, can also
@@ -286,7 +275,7 @@ Upsampling:
 When upsampling by a power-of-two, the Lanczos kernel cycles
 between 2^level sets of values. For example, consider the
 first 4 outputs of the lanzcos-test upsample example. Notice
-that the outputs for L() repeat for j={0,2} and j={1,3}.
+that the outputs for L(x) repeat for j={0,2} and j={1,3}.
 
 	upsample n1=10, n2=20
 	j=0, x=-0.250000
@@ -328,7 +317,7 @@ When downsampling by a power-of-two, the Lanczos kernel
 becomes independent of x since (x - floor(x)) becomes a
 constant which matches the phase shift. For example,
 consider the first 2 outputs of the lanzcos-test
-downsample example. Notice that the outputs of L()
+downsample example. Notice that the outputs of L(x)
 repeat for each j.
 
 	downsample n1=10, n2=5
