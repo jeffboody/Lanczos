@@ -358,7 +358,7 @@ References
 ----------
 
 This README was created with the assistance of
-(Google Gemini)[https://gemini.google.com/].
+[Google Gemini](https://gemini.google.com/).
 
 Additional references include:
 
