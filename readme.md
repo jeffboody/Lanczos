@@ -4,7 +4,7 @@ Lanczos Resampling
 Introduction
 ------------
 
-Lanczos (pronounced Lanchos) resampling is a sophisticated
+Lanczos (pronounced LAN-tsosh [ˈlaːnt͡soʃ]) resampling is a sophisticated
 technique for interpolating digital signals, offering
 superior image quality compared to simpler methods like
 nearest neighbor and bilinear interpolation. By effectively
