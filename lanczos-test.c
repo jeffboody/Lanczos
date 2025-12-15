@@ -119,7 +119,6 @@ int main(int argc, char** argv)
 	{
 		s1 = S1(i);
 		fprintf(fs1, "%lf %lf\n", (double) i, s1);
-		fprintf(fs1, "%lf %lf\n", (double) (i + 1), s1);
 	}
 
 	// downsample

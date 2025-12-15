@@ -177,6 +177,13 @@ need to be clamped to the same range to ensure that the
 output values do not overflow when converted back to
 unsigned bytes of [0,255].
 
+Multichannel Data
+-----------------
+
+When a dataset, such as a color image, consists of
+multichannel data, the standard procedure is to treat each
+channel independently.
+
 Multidimensional Interpolation
 ------------------------------
 
@@ -255,26 +262,32 @@ as commonly done for generating texture mipmaps, can also
 degrade image quality due to the accumulation of errors
 from each resampling step.
 
-Example
--------
+Irregular Data
+--------------
 
-Run the lancos-test example and use gnuplot to see how
-Lanczos resampling affects a simple one-dimensional signal
-when upsampled and downsampled by a factor of 2.
+TODO - Irregular Data
 
-	make
-	./lanczos-test
-	gnuplot
-	> load "output.plot"
+Power-of-two Resampling Optimization
+------------------------------------
 
-![Example](output.jpg?raw=true "Example")
+The Lanczos kernel is relatively expensive to calculate, as
+the sinc function relies on the trigonometric sin function.
+This computational cost can be mitigated through
+precomputation when the resampling factor is a rational
+number.
 
 Upsampling:
 
-When upsampling by a power-of-two, the Lanczos kernel cycles
-between 2^level sets of values. For example, consider the
-first 4 outputs of the lanzcos-test upsample example. Notice
-that the outputs for L(x) repeat for j={0,2} and j={1,3}.
+When upsampling by an integer factor S, the relative
+position of the new output samples on the input grid repeats
+periodically. For an integer upsampling factor S, there are
+only S unique phases (fractional offsets) for the L kernel
+argument. This means only S unique sets of kernel values are
+needed. Precomputing these S sets eliminates the costly
+runtime sin function calls.
+
+For example, consider the output of the 2x upsampling
+example of a 1D signal.
 
 	upsample n1=10, n2=20
 	j=0, x=-0.250000
@@ -312,12 +325,14 @@ that the outputs for L(x) repeat for j={0,2} and j={1,3}.
 
 Downsampling:
 
-When downsampling by a power-of-two, the Lanczos kernel
-becomes independent of x since (x - floor(x)) becomes a
-constant which matches the phase shift. For example,
-consider the first 2 outputs of the lanzcos-test
-downsample example. Notice that the outputs of L(x)
-repeat for each j.
+When downsampling by a factor S, if the output sample
+positions x are chosen such that the fractional part of x is
+constant (e.g. 0.5 for centered downsampling), then the L
+kernel argument will have the same set of fractional parts
+for every output sample.
+
+For example, consider the output of the 2x downsampling
+example of a 1D signal.
 
 	downsample n1=10, n2=5
 	j=0, x=0.500000
@@ -349,9 +364,23 @@ repeat for each j.
 	i=6, L(2.750000)=0.007356, S1(8.000000)=0.900000
 	s2=0.678627, s2/w=0.340344, w=1.993943
 
-As a further optimization, the Lanczos kernel may be
-precomputed for these cases to eliminate the expensive sinc
-function computation.
+The Lanczos library implements this optimization for 2x
+upsampling and 1/2x downsampling since these are frequently
+used resampling factors.
+
+Example
+-------
+
+Run the lancos-test example and use gnuplot to see how
+Lanczos resampling affects a simple one-dimensional signal
+when upsampled and downsampled by a factor of 2.
+
+	make
+	./lanczos-test
+	gnuplot
+	> load "output.plot"
+
+![Example](output.jpg?raw=true "Example")
 
 References
 ----------
