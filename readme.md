@@ -77,33 +77,35 @@ Lanczos interpolation is a technique used to resample a
 discrete signal to a new sampling rate. It achieves this by
 convolving the original signal with a Lanczos kernel.
 
-The interpolated signal s2(x) can be calculated as follows:
+The interpolated signal s2(x) is calculated as a weighted
+sum of the original samples:
 
 	s2(x) = (1/w(x))*
-	        SUM(i = -a + 1, i = a,
+	        SUM(i = i0, i = i1,
 	            s1(floor(x) + i)*
-	            L(i - x + floor(x)))
-
-Where:
-
-* s1(x) is the original input signal, treated as a
-  continuous function
-* w(x) is a normalization factor to preserve flux
+	            L((i - x + floor(x))/fs))
 
 Preserving Flux:
 
-The normalization factor w(x) is crucial for preserving the
-overall signal energy or mass during the interpolation
-process. It ensures that the sum of the interpolated values
-approximates the sum of the original samples. The filter
-weight is calculated as:
+The normalization factor w(x) is crucial for preserving
+signal energy (mass). It ensures that the sum of the weights
+equals 1, preventing the interpolated signal from becoming
+globally brighter or darker.
 
-	w(x) = SUM(i = -a + 1, i = a, L(i - x + floor(x)))
+	w(x) = SUM(i = i0, i = i1, L((i - x + floor(x))/fs))
 
 Upsampling:
 
-When increasing the sampling rate, the Lanczos interpolation
-equation can be used directly without modifications.
+When increasing the sampling rate, the filter scale is equal
+to one since the kernel radius is equal to the support
+radius (e.g. no stretching).
+
+	fs = 1
+
+The summation bounds cover a fixed window of 2\*a samples.
+
+	i0 = -a + 1
+	i1 = a
 
 Downsampling:
 
@@ -113,16 +115,21 @@ sampling rate.
 
 	fs = n1/n2
 
-	s2(x) = (1/w(x))*
-	        SUM(i = -(fs*a) + 1, i = (fs*a),
-	            s1(floor(x) + i)*
-	            L((i - x + floor(x))/fs))
+When the support radius (fs\*a) is an integer value, the
+summation bounds covers a fixed window of 2\*fs\*a samples.
 
-Where:
+	i0 = -fs*a + 1
+	i1 = fs*a
 
-* fs is the downsampling factor
-* n1 is the number of samples in the original signal
-* n2 is the number of samples in the interpolated signal
+However, when the support radius (fs\*a) is not an integer
+value then the summation bounds requires a dynamic window.
+The dynamic window is required because as x moves across the
+input signal, the number of integer points covered by the
+stretched kernel may vary depending on the fractional part
+of x.
+
+	i0 = floor(-fs*a + 1 + (x - floor(x)))
+	i1 = floor(fs*a + (x - floor(x)))
 
 Sample Positions
 ----------------
@@ -198,10 +205,11 @@ The interpolated signal s2(x, y) can be calculated using the
 following formula:
 
 	s2(x, y) = (1/w(x, y))*
-	           SUM(i = -a + 1, i = a,
-	               SUM(j = -a + 1, j = a,
+	           SUM(i = i0, i = i1,
+	               SUM(j = j0, j = j1,
 	                   s1(floor(x) + j, floor(y) + i)*
-	                   L(j - x + floor(x), i - y + floor(y))))
+	                   L((j - x + floor(x))/fs,
+	                     (i - y + floor(y))/fs)))
 
 Where w(x, y) is the normalization factor calculated using
 the two-dimensional Lanczos kernel.
@@ -232,14 +240,14 @@ Vertical Interpolation:
 Mathematical Representation:
 
 	s2(x, y) = (1/w(x))*
-	           SUM(j = -a + 1, j = a,
+	           SUM(j = j0, j = j1,
 	               s1(floor(x) + j, y)*
-	               L(j - x + floor(x)))
+	               L((j - x + floor(x))/fs))
 
 	s3(x, y) = (1/w(y))*
-	           SUM(i = -a + 1, i = a,
+	           SUM(i = i0, i = i1,
 	               s2(x, floor(y) + i)*
-	               L(i - y + floor(y)))
+	               L((i - y + floor(y))/fs))
 
 Note that the normalization factors w(x) and w(y) are
 calculated using the one-dimensional Lanczos kernel.
