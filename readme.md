@@ -270,111 +270,49 @@ as commonly done for generating texture mipmaps, can also
 degrade image quality due to the accumulation of errors
 from each resampling step.
 
+Precomputed Kernel Optimization
+-------------------------------
+
+The Lanczos kernel is computationally expensive because the
+sinc function requires trigonometric sine calls. This cost
+can be eliminated through precomputation when using specific
+resampling factors.
+
+Upsampling (Fast Path):
+
+When upsampling by an integer factor S, the Lanczos
+coefficients repeat in S phases where each phase includes
+2\*a coefficients.
+
+* Resampling Factor: S = n2/n1
+* Total Coefficients: N = S\*2\*a
+* Runtime Logic: The algorithm selects the correct
+  precomputed phase using j % S.
+
+Downsampling (Fast Path):
+
+When downsampling by a factor S that is the reciprocal of an
+integer D, the Lanczos coefficients repeat for every output
+sample resulting in a single phase with D\*2\*a
+coefficients.
+
+* Resampling Factor: S = 1/D = n2/n1
+* Total Coefficients: N = D\*2\*a
+* Runtime Logic: The same single set of Lanczos coefficients
+  is applied to every output sample.
+
+Arbitrary Resampling (Slow Path):
+
+When the resampling factor does not adhere to these specific
+integer or reciprocal conditions, the algorithm must fall
+back to a "slow path." In this mode, the Lanczos
+coefficients are computed at runtime for every individual
+sample to accommodate the non-repeating values.
+
 Irregular Data
 --------------
 
 TODO - Irregular Data
-
-Power-of-two Resampling Optimization
-------------------------------------
-
-The Lanczos kernel is relatively expensive to calculate, as
-the sinc function relies on the trigonometric sin function.
-This computational cost can be mitigated through
-precomputation when the resampling factor is a rational
-number.
-
-Upsampling:
-
-When upsampling by an integer factor S, the relative
-position of the new output samples on the input grid repeats
-periodically. For an integer upsampling factor S, there are
-only S unique phases (fractional offsets) for the L kernel
-argument. This means only S unique sets of kernel values are
-needed. Precomputing these S sets eliminates the costly
-runtime sin function calls.
-
-For example, consider the output of the 2x upsampling
-example of a 1D signal.
-
-	upsample n1=10, n2=20
-	j=0, x=-0.250000
-	i=-2, L(-2.750000)=0.007356, S1(-3.000000)=0.100000
-	i=-1, L(-1.750000)=-0.067791, S1(-2.000000)=0.100000
-	i=0, L(-0.750000)=0.270190, S1(-1.000000)=0.100000
-	i=1, L(0.250000)=0.890067, S1(0.000000)=0.100000
-	i=2, L(1.250000)=-0.132871, S1(1.000000)=0.300000
-	i=3, L(2.250000)=0.030021, S1(2.000000)=0.400000
-	s2=0.082129, s2/w=0.082379, w=0.996972
-	j=1, x=0.250000
-	i=-2, L(-2.250000)=0.030021, S1(-2.000000)=0.100000
-	i=-1, L(-1.250000)=-0.132871, S1(-1.000000)=0.100000
-	i=0, L(-0.250000)=0.890067, S1(0.000000)=0.100000
-	i=1, L(0.750000)=0.270190, S1(1.000000)=0.300000
-	i=2, L(1.750000)=-0.067791, S1(2.000000)=0.400000
-	i=3, L(2.750000)=0.007356, S1(3.000000)=0.300000
-	s2=0.134869, s2/w=0.135279, w=0.996972
-	j=2, x=0.750000
-	i=-2, L(-2.750000)=0.007356, S1(-2.000000)=0.100000
-	i=-1, L(-1.750000)=-0.067791, S1(-1.000000)=0.100000
-	i=0, L(-0.750000)=0.270190, S1(0.000000)=0.100000
-	i=1, L(0.250000)=0.890067, S1(1.000000)=0.300000
-	i=2, L(1.250000)=-0.132871, S1(2.000000)=0.400000
-	i=3, L(2.250000)=0.030021, S1(3.000000)=0.300000
-	s2=0.243853, s2/w=0.244594, w=0.996972
-	j=3, x=1.250000
-	i=-2, L(-2.250000)=0.030021, S1(-1.000000)=0.100000
-	i=-1, L(-1.250000)=-0.132871, S1(0.000000)=0.100000
-	i=0, L(-0.250000)=0.890067, S1(1.000000)=0.300000
-	i=1, L(0.750000)=0.270190, S1(2.000000)=0.400000
-	i=2, L(1.750000)=-0.067791, S1(3.000000)=0.300000
-	i=3, L(2.750000)=0.007356, S1(4.000000)=0.200000
-	s2=0.345945, s2/w=0.346996, w=0.996972
-
-Downsampling:
-
-When downsampling by a factor S, if the output sample
-positions x are chosen such that the fractional part of x is
-constant (e.g. 0.5 for centered downsampling), then the L
-kernel argument will have the same set of fractional parts
-for every output sample.
-
-For example, consider the output of the 2x downsampling
-example of a 1D signal.
-
-	downsample n1=10, n2=5
-	j=0, x=0.500000
-	i=-5, L(-2.750000)=0.007356, S1(-5.000000)=0.100000
-	i=-4, L(-2.250000)=0.030021, S1(-4.000000)=0.100000
-	i=-3, L(-1.750000)=-0.067791, S1(-3.000000)=0.100000
-	i=-2, L(-1.250000)=-0.132871, S1(-2.000000)=0.100000
-	i=-1, L(-0.750000)=0.270190, S1(-1.000000)=0.100000
-	i=0, L(-0.250000)=0.890067, S1(0.000000)=0.100000
-	i=1, L(0.250000)=0.890067, S1(1.000000)=0.300000
-	i=2, L(0.750000)=0.270190, S1(2.000000)=0.400000
-	i=3, L(1.250000)=-0.132871, S1(3.000000)=0.300000
-	i=4, L(1.750000)=-0.067791, S1(4.000000)=0.200000
-	i=5, L(2.250000)=0.030021, S1(5.000000)=0.400000
-	i=6, L(2.750000)=0.007356, S1(6.000000)=0.600000
-	s2=0.437796, s2/w=0.219563, w=1.993943
-	j=1, x=2.500000
-	i=-5, L(-2.750000)=0.007356, S1(-3.000000)=0.100000
-	i=-4, L(-2.250000)=0.030021, S1(-2.000000)=0.100000
-	i=-3, L(-1.750000)=-0.067791, S1(-1.000000)=0.100000
-	i=-2, L(-1.250000)=-0.132871, S1(0.000000)=0.100000
-	i=-1, L(-0.750000)=0.270190, S1(1.000000)=0.300000
-	i=0, L(-0.250000)=0.890067, S1(2.000000)=0.400000
-	i=1, L(0.250000)=0.890067, S1(3.000000)=0.300000
-	i=2, L(0.750000)=0.270190, S1(4.000000)=0.200000
-	i=3, L(1.250000)=-0.132871, S1(5.000000)=0.400000
-	i=4, L(1.750000)=-0.067791, S1(6.000000)=0.600000
-	i=5, L(2.250000)=0.030021, S1(7.000000)=0.800000
-	i=6, L(2.750000)=0.007356, S1(8.000000)=0.900000
-	s2=0.678627, s2/w=0.340344, w=1.993943
-
-The Lanczos library implements this optimization for 2x
-upsampling and 1/2x downsampling since these are frequently
-used resampling factors.
 
 Example
 -------
