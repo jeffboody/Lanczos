@@ -16,7 +16,7 @@ of increased computational complexity. Additionally, the
 potential for "ringing" artifacts, particularly around sharp
 edges, can be a drawback. Despite these challenges, Lanczos
 remains a preferred choice for tasks such as image scaling
-and rotation due to its overall performance benefits.
+and rotation due to its overall quality benefits.
 
 This document provides a comprehensive overview of Lanczos
 resampling, including its theoretical underpinnings,
@@ -27,8 +27,9 @@ The subsequent sections delve into crucial aspects of
 Lanczos resampling, such as the Lanczos kernel,
 interpolation and resampling processes, flux preservation,
 upsampling, downsampling, sample positioning, output range,
-multidimensional interpolation, and separability. A
-practical example with accompanying source code is included.
+multidimensional interpolation, separability, precomputed
+kernel optimization, and irregular data. A practical example
+with accompanying source code is included.
 
 Lanczos Kernel
 --------------
@@ -77,22 +78,21 @@ Lanczos interpolation is a technique used to resample a
 discrete signal to a new sampling rate. It achieves this by
 convolving the original signal with a Lanczos kernel.
 
-The interpolated signal s2(x) is calculated as a weighted
-sum of the original samples:
+The interpolated signal s2 is calculated as a weighted sum
+of the original samples:
 
-	s2(x) = (1/w(x))*
-	        SUM(i = i0, i = i1,
-	            s1(floor(x) + i)*
-	            L((i - x + floor(x))/fs))
+	s2[j] = (1/wj)*
+	        SUM(i = i0, i = i1, s1(floor(xj) + i)*
+	            L((i - xj + floor(xj))/fs))
 
 Preserving Flux:
 
-The normalization factor w(x) is crucial for preserving
+The normalization factor wj is crucial for preserving
 signal energy (mass). It ensures that the sum of the weights
 equals 1, preventing the interpolated signal from becoming
 globally brighter or darker.
 
-	w(x) = SUM(i = i0, i = i1, L((i - x + floor(x))/fs))
+	wj = SUM(i = i0, i = i1, L((i - xj + floor(xj))/fs))
 
 Upsampling:
 
@@ -123,28 +123,28 @@ summation bounds covers a fixed window of 2\*fs\*a samples.
 
 However, when the support radius (fs\*a) is not an integer
 value then the summation bounds requires a dynamic window.
-The dynamic window is required because as x moves across the
-input signal, the number of integer points covered by the
-stretched kernel may vary depending on the fractional part
-of x.
+The dynamic window is required because as xj moves across
+the input signal, the number of integer points covered by
+the stretched kernel may vary depending on the fractional
+part of xj.
 
-	i0 = floor(-fs*a + 1 + (x - floor(x)))
-	i1 = floor(fs*a + (x - floor(x)))
+	i0 = floor(-fs*a + 1 + (xj - floor(xj)))
+	i1 = floor(fs*a + (xj - floor(xj)))
 
 Sample Positions
 ----------------
 
 When resampling a signal from n1 samples to n2 samples the
 following sample positions are used. The index j is used to
-represent the samples from the sampled signal s2(x). The
-term (j + 0.5) is the center of a sample in s2(x). The step
-scales a point in s2(x) to a point in s1(x). The final -0.5
-term in x is a phase shift that causes the Lanczos
-coefficient samples to be offset.
+represent the samples from the sampled signal s2. The term
+(j + 0.5) is the center of a sample in s2. The step scales a
+point in s2 to a point in s1. The final -0.5 term in xj is a
+phase shift that causes the Lanczos coefficient samples to
+be offset.
 
 	step = n1/n2
 	j    = [0..n2)
-	x    = (j + 0.5)*step - 0.5
+	xj   = (j + 0.5)*step - 0.5
 
 Edge Handling
 -------------
@@ -177,12 +177,11 @@ application and desired output.
 Output Range
 ------------
 
-The range of s2(x) may be greater than that of s1(x) due to
-the lobes of L(x). For example, an input signal s1(x)
-corresponding to pixel colors in the range of [0.0,1.0]
-need to be clamped to the same range to ensure that the
-output values do not overflow when converted back to
-unsigned bytes of [0,255].
+The range of s2 may be greater than that of s1 due to the
+lobes of L(x). For example, an input signal s1 corresponding
+to pixel colors in the range of [0.0,1.0] need to be clamped
+to the same range to ensure that the output values do not
+overflow when converted back to unsigned bytes of [0,255].
 
 Multichannel Data
 -----------------
@@ -201,7 +200,7 @@ The two-dimensional Lanczos kernel is defined as:
 
 	L(x, y) = sinc(sqrt(x^2 + y^2))*sinc(sqrt(x^2 + y^2)/a)
 
-The interpolated signal s2(x, y) can be calculated using the
+The interpolated signal s2 can be calculated using the
 following formula:
 
 	s2(x, y) = (1/w(x, y))*
@@ -228,14 +227,14 @@ for the horizontal and vertical dimensions.
 Horizontal Interpolation:
 
 * Apply the one-dimensional Lanczos kernel to each row of
-  the input signal s1(x, y).
-* This produces an intermediate result, s2(x, y).
+  the input signal s1.
+* This produces an intermediate result, s2.
 
 Vertical Interpolation:
 
 * Apply the one-dimensional Lanczos kernel to each column of
-  the intermediate result s2(x, y).
-* This produces the final interpolated signal, s3(x, y).
+  the intermediate result s2.
+* This produces the final interpolated signal, s3.
 
 Mathematical Representation:
 
@@ -312,7 +311,100 @@ sample to accommodate the non-repeating values.
 Irregular Data
 --------------
 
-TODO - Irregular Data
+The Lanczos kernel can be used to resample irregularly
+spaced samples into a regular grid, a procedure often called
+gridding.
+
+Aliasing and Bandwidth:
+
+The Lanczos kernel assumes the input is a band-limited
+signal sampled at or above the Nyquist rate. With irregular
+spacing, this assumption is not guaranteed. The quality of
+the result depends heavily on the local sampling density. In
+areas where samples are sparse, the kernel may fail to
+capture high-frequency features, leading to artifacts.
+
+Computational Cost:
+
+Processing irregular data is significantly more expensive
+than regular data because:
+
+* Search Overhead: The algorithm must locate which irregular
+  samples xi fall within the support window of the output
+  point xj. This is typically handled by "binning" samples
+  into a spatial data structure.
+* No Precomputation: Since the distances between samples are
+  arbitrary, the Lanczos coefficients cannot be precomputed
+  into a repeating lookup table.
+* Larger Support: In sparse regions, it may be necessary to
+  increase the kernel radius a to ensure a sufficient number
+  of samples are captured for a stable interpolation.
+
+Irregular Interpolation and Normalization:
+
+To account for the varying density of samples, the
+interpolation must be normalized by the sum of the weights
+(wj). This ensures that areas with a high concentration of
+samples do not appear artificially "brighter."
+
+	s2[j] = (1/wj)*
+	        SUM(i = 0, i = N - 1, vj*s1[i]*L(fx[i] - xj))
+
+	wj = SUM(i = 0, i = N - 1, vj*L(fx[i] - xj))
+
+The Mapping Function:
+
+The function fx[i] maps a sample from the irregular
+coordinate space into the regular grid space
+(0 to n2 − 1). Given the bounds of the irregular space
+[x0,x1], the mapping is defined as:
+
+	fx[i] = n2*(xi - x0 + 0.5)/(x1 - x0 + 1)
+
+A sample s1[i] is included in the summation for output
+point j only if it falls within the kernel's support
+radius:
+
+	|fx[i] - xj| < a
+
+The function fx[i] may output floating point values.
+
+Density Compensation:
+
+In many irregular datasets, samples are not just randomly
+placed but are often clustered in specific regions. Without
+correction, these high-density clusters will
+disproportionately influence the interpolated result,
+leading to "hotspots" or artificial brightness in the
+reconstructed signal.
+
+To correct this, a density compensation weight (vj) is
+assigned to each grid cell. Samples contributing to dense
+cells receive a low weight, while those in isolated areas
+receive a high weight.
+
+The density weight for a grid cell xj is calculated by
+summing the Lanczos kernel values for all irregular samples
+xi that fall within that cell's support radius.
+
+	vj = 1/(SUM(i = 0, i = N - 1, L(fx[i] - xj)))
+
+Special Case Handling:
+
+* Zero-Density Cells: When no samples exist within the
+  support radius, the summation is zero. In this case, vj is
+  typically set to 0 (zero-fill), resulting in an empty or
+  "null" region in the output grid.
+* Zero-Weight Cancellations: Because the Lanczos kernel
+  contains negative lobes, it is mathematically possible for
+  a set of samples to yield a total sum of zero. To prevent
+  division by zero in this case, the implementation should
+  check if ∣SUM∣ < epsilon before calculating the
+  reciprocal.
+* Nearest Neighbor Fallback: For applications requiring a
+  continuous signal, if the support window is empty, the
+  implementation may fallback to a nearest-neighbor search
+  to fill the gap.
 
 Example
 -------
