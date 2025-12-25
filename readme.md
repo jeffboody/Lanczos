@@ -125,8 +125,8 @@ However, when the support radius (fs\*a) is not an integer
 value then the summation bounds requires a dynamic window.
 The dynamic window is required because as xj moves across
 the input signal, the number of integer points covered by
-the stretched kernel may vary depending on the fractional
-part of xj.
+the stretched kernel may vary depending on the position of
+xj.
 
 	i0 = floor(-fs*a + 1 + (xj - floor(xj)))
 	i1 = floor(fs*a + (xj - floor(xj)))
@@ -355,19 +355,19 @@ samples do not appear artificially "brighter."
 The Mapping Function:
 
 The function fx[i] maps a sample from the irregular
-coordinate space into the regular grid space
-(0 to n2 − 1). Given the bounds of the irregular space
-[x0,x1], the mapping is defined as:
+coordinate space into the regular grid space. Given the
+bounds of the irregular space [x0,x1], the mapping is
+defined as:
 
 	fx[i] = n2*(xi - x0 + 0.5)/(x1 - x0 + 1)
+	j     = [0..n2)
+	xj    = j
 
 A sample s1[i] is included in the summation for output
 point j only if it falls within the kernel's support
 radius:
 
 	|fx[i] - xj| < a
-
-The function fx[i] may output floating point values.
 
 Density Compensation:
 
