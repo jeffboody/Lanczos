@@ -25,64 +25,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-// clamp-to-edge outside bounds or
-// zero outside bounds
-#define LANCZOS_USE_CLAMP_TO_EDGE
-
-/***********************************************************
-* private                                                  *
-***********************************************************/
-
-static double sinc(double x)
-{
-	if(x == 0.0)
-	{
-		return 1.0;
-	}
-
-	return sin(M_PI*x)/(M_PI*x);
-}
-
-static double L(double x, double a)
-{
-	if((-a < x) && (x < a))
-	{
-		return sinc(x)*sinc(x/a);
-	}
-
-	return 0.0;
-}
-
-#define N1 10
-
-static double S1(int i)
-{
-	double s1[N1] =
-	{
-		0.1, 0.3, 0.4, 0.3, 0.2,
-		0.4, 0.6, 0.8, 0.9, 0.7,
-	};
-
-	#ifdef LANCZOS_USE_CLAMP_TO_EDGE
-		// clamp-to-edge outside bounds
-		if(i < 0)
-		{
-			i = 0;
-		}
-		else if(i >= 10)
-		{
-			i = 9;
-		}
-	#else
-		// zero outside bounds
-		if((i < 0) || (i >= 10))
-		{
-			return 0.0;
-		}
-	#endif
-
-	return s1[i];
-}
+#define LOG_TAG "lanczos"
+#include "../libcc/cc_log.h"
+#include "liblanczos/lanczos_resample.h"
 
 /***********************************************************
 * public                                                   *
@@ -90,6 +35,7 @@ static double S1(int i)
 
 int main(int argc, char** argv)
 {
+	// open data files
 	FILE* fs1 = fopen("s1.dat", "w");
 	if(fs1 == NULL)
 	{
@@ -111,77 +57,69 @@ int main(int argc, char** argv)
 		goto fail_fs2u;
 	}
 
-	// export s1
-	int    n1 = N1;
-	double s1;
-	int i;
-	for(i = 0; i < n1; ++i)
+	float src[10] =
 	{
-		s1 = S1(i);
-		fprintf(fs1, "%lf %lf\n", (double) i, s1);
+		0.1f, 0.3f, 0.4f, 0.3f, 0.2f,
+		0.4f, 0.6f, 0.8f, 0.9f, 0.7f,
+	};
+
+	// initialize parameters
+	float dstu[20];
+	float dstd[5];
+	lanczos_paramRegular1D_t paramu =
+	{
+		.flags    = 0,
+		.a        = 3,
+		.channels = 1,
+		.src_w    = sizeof(src)/sizeof(float),
+		.dst_w    = sizeof(dstu)/sizeof(float),
+		.src      = src,
+		.dst      = dstu,
+	};
+
+	lanczos_paramRegular1D_t paramd =
+	{
+		.flags    = paramu.flags,
+		.a        = paramu.a,
+		.channels = paramu.channels,
+		.src_w    = paramu.src_w,
+		.dst_w    = sizeof(dstd)/sizeof(float),
+		.src      = src,
+		.dst      = dstd,
+	};
+
+	// resample data
+	if((lanczos_resample_regular1D(&paramu) == 0) ||
+	   (lanczos_resample_regular1D(&paramd) == 0))
+	{
+		goto fail_resample;
 	}
 
-	// downsample
-	int    j;
-	int    n2 = 5;
-	int    fs = n1/n2;
-	int    a  = 3;
-	double fsd = (double) fs;
-	double s2;
-	double l;
-	double x;
-	double w;
-	double jd;
-	double step = ((double) n1)/((double) n2);
-	printf("downsample n1=%i, n2=%i\n", n1, n2);
-	for(j = 0; j < n2; ++j)
+	// export s1 data
+	uint32_t i;
+	for(i = 0; i < paramu.src_w; ++i)
 	{
-		jd = (double) j;
-		x  = (jd + 0.5)*step - 0.5;
-		w  = 0.0;
-		s2 = 0.0;
-		printf("j=%i, x=%lf\n", j, x);
-		for(i = -(fs*a) + 1; i <= (fs*a); ++i)
-		{
-			l   = L((i - x + floor(x))/fsd, a);
-			s1  = S1(floor(x) + i);
-			printf("i=%i, L(%lf)=%lf, S1(%lf)=%f\n",
-			       i,
-			       (double) (i - x + floor(x))/fsd, l,
-			       (double) (floor(x) + i), s1);
-			s2 += s1*l;
-			w  += l;
-		}
-		printf("s2=%lf, s2/w=%lf, w=%lf\n", s2, s2/w, w);
-		fprintf(fs2d, "%lf %lf %lf\n", x, s2/w, w);
+		fprintf(fs1, "%f %f\n", (float) i, src[i]);
 	}
-	printf("\n");
 
-	// upsample
-	n2   = 20;
-	a    = 3;
-	step = ((double) n1)/((double) n2);
-	printf("upsample n1=%i, n2=%i\n", n1, n2);
-	for(j = 0; j < n2; ++j)
+	// export s2u data
+	uint32_t j;
+	float    xj;
+	float    step = ((float) paramu.src_w)/
+	                ((float) paramu.dst_w);
+	for(j = 0; j < paramu.dst_w; ++j)
 	{
-		jd = (double) j;
-		x  = (jd + 0.5)*step - 0.5;
-		w  = 0.0;
-		s2 = 0.0;
-		printf("j=%i, x=%lf\n", j, x);
-		for(i = -a + 1; i <= a; ++i)
-		{
-			l   = L(i - x + floor(x), a);
-			s1  = S1(floor(x) + i);
-			printf("i=%i, L(%lf)=%lf, S1(%lf)=%f\n",
-			       i,
-			       (double) (i - x + floor(x)), l,
-			       (double) (floor(x) + i), s1);
-			s2 += s1*l;
-			w  += l;
-		}
-		printf("s2=%lf, s2/w=%lf, w=%lf\n", s2, s2/w, w);
-		fprintf(fs2u, "%lf %lf %lf\n", x, s2/w, w);
+		xj = (j + 0.5f)*step - 0.5f;
+		fprintf(fs2u, "%f %f\n", xj, dstu[j]);
+	}
+
+	// export s2d data
+	step = ((float) paramd.src_w)/
+	       ((float) paramd.dst_w);
+	for(j = 0; j < paramd.dst_w; ++j)
+	{
+		xj = (j + 0.5f)*step - 0.5f;
+		fprintf(fs2d, "%f %f\n", xj, dstd[j]);
 	}
 
 	fclose(fs2u);
@@ -192,6 +130,8 @@ int main(int argc, char** argv)
 	return EXIT_SUCCESS;
 
 	// failure
+	fail_resample:
+		fclose(fs2u);
 	fail_fs2u:
 		fclose(fs2d);
 	fail_fs2d:
