@@ -1,6 +1,6 @@
 export CC_USE_MATH = 1
 
-TARGET  = lanczos-test
+TARGET  = sine-test
 CLASSES =
 SOURCE  = $(TARGET).c $(CLASSES:%=%.c)
 OBJECTS = $(TARGET).o $(CLASSES:%=%.o)
@@ -27,5 +27,6 @@ clean:
 	rm -f $(OBJECTS) *~ \#*\# $(TARGET)
 	$(MAKE) -C libcc clean
 	$(MAKE) -C liblanczos clean
+	rm libcc liblanczos
 
 $(OBJECTS): $(HFILES)

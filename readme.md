@@ -406,19 +406,21 @@ Special Case Handling:
   implementation may fallback to a nearest-neighbor search
   to fill the gap.
 
-Example
--------
+Example: 1D Sine Test
+---------------------
 
-Run the lancos-test example and use gnuplot to see how
+Run the sine-test example and use gnuplot to see how
 Lanczos resampling affects a simple one-dimensional signal
-when upsampled and downsampled by a factor of 2.
+when upsampled and downsampled by various factors.
 
-	make
-	./lanczos-test
+	cd sine-test
+	./setup.sh
+	make -j4
+	./run.sh
 	gnuplot
-	> load "output.plot"
+	> load "sine-test.plot"
 
-![Example](output.jpg?raw=true "Example")
+![1D Sine Test](sine-test/sine-test.jpg?raw=true "1D Sine Test")
 
 References
 ----------
