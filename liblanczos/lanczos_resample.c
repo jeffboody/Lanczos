@@ -180,6 +180,81 @@ lanczos_resample_regular1DFast(lanczos_paramRegular1D_t* param,
 	return 0;
 }
 
+static int
+lanczos_resample_regular1DSlow(lanczos_paramRegular1D_t* param)
+{
+	ASSERT(param);
+
+	float fs = 1.0f;
+	if(param->dst_w < param->src_w)
+	{
+		fs = ((float) param->src_w)/((float) param->dst_w);
+	}
+
+	float step = ((float) param->src_w)/
+	             ((float) param->dst_w);
+
+	// commpute s2[j]
+	uint32_t ch;
+	uint32_t nch = param->channels;
+	uint32_t j;
+	int32_t  i;
+	int32_t  i0;
+	int32_t  i1;
+	int32_t  s1x;
+	float    sum;
+	float    xj;
+	float    wj;
+	float    lcoef;
+	float*   s1 = param->src;
+	float*   s2 = param->dst;
+	for(ch = 0; ch < nch; ++ch)
+	{
+		for(j = 0; j < param->dst_w; ++j)
+		{
+			sum = 0.0f;
+			wj  = 0.0f;
+			xj  = (j + 0.5f)*step - 0.5f;
+			i0 = (int32_t) floorf(-fs*param->a + 1 + (xj - floorf(xj)));
+			i1 = (int32_t) floorf(fs*param->a + (xj - floorf(xj)));
+			for(i = i0; i <= i1; ++i)
+			{
+				// Edge Handling
+				s1x = ((int32_t) floorf(xj)) + i;
+				if(param->flags & LANCZOS_FLAG_EDGE_ZERO_PADDING)
+				{
+					// Zero Padding
+					if((s1x < 0) || (s1x >= (param->src_w - 1)))
+					{
+						continue;
+					}
+				}
+				else
+				{
+					// Clamping
+					if(s1x < 0)
+					{
+						s1x = 0;
+					}
+					else if(s1x >= param->src_w)
+					{
+						s1x = param->src_w - 1;
+					}
+				}
+
+				lcoef = L((i - xj + floor(xj))/fs, param->a);
+				sum  += s1[nch*s1x + ch]*lcoef;
+				wj   += lcoef;
+			}
+
+			// Preserving Flux Normalization
+			s2[nch*j + ch] = sum/wj;
+		}
+	}
+
+	return 1;
+}
+
 /*
  * public
  */
@@ -217,9 +292,8 @@ int lanczos_resample_regular1D(lanczos_paramRegular1D_t* param)
 		return lanczos_resample_regular1DFast(param, 1, N, fs);
 	}
 
-	// TODO - Arbitrary Resampling (Slow Path)
-
-	return 0;
+	// Arbitrary Resampling (Slow Path)
+	return lanczos_resample_regular1DSlow(param);
 }
 
 int lanczos_resample_regular2D(lanczos_paramRegular2D_t* param)
