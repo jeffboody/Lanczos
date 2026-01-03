@@ -45,10 +45,10 @@ int main(int argc, const char** argv)
 	lanczos_paramRegular1D_t param =
 	{
 		.flags    = 0,
-		.a        = (uint32_t) strtol(argv[1], NULL, 0),
+		.a        = (int32_t) strtol(argv[1], NULL, 0),
 		.channels = 1,
-		.src_w    = (uint32_t) strtol(argv[2], NULL, 0),
-		.dst_w    = (uint32_t) strtol(argv[3], NULL, 0),
+		.src_w    = (int32_t) strtol(argv[2], NULL, 0),
+		.dst_w    = (int32_t) strtol(argv[3], NULL, 0),
 	};
 
 	param.src = (float*) CALLOC(param.src_w, sizeof(float));
@@ -66,9 +66,9 @@ int main(int argc, const char** argv)
 	}
 
 	// generate src data
-	float a;
-	float b = (float) (param.src_w - 1);
-	uint32_t i;
+	float   a;
+	float   b = (float) (param.src_w - 1);
+	int32_t i;
 	for(i = 0; i < param.src_w; ++i)
 	{
 		a = (float) i;
@@ -110,10 +110,10 @@ int main(int argc, const char** argv)
 	}
 
 	// export dst data
-	uint32_t j;
-	float    xj;
-	float    step = ((float) param.src_w)/
-	                ((float) param.dst_w);
+	int32_t j;
+	float   xj;
+	float   step = ((float) param.src_w)/
+	               ((float) param.dst_w);
 	for(j = 0; j < param.dst_w; ++j)
 	{
 		xj = (j + 0.5f)*step - 0.5f;

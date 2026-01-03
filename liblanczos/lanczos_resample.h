@@ -37,30 +37,32 @@
 #define LANCZOS_FLAG_MULTIDIM_2D_ISOTROPIC 0x0020
 
 // Irregular Data Holes
-// default: NEAREST
+// default: LINEAR
 #define LANCZOS_FLAG_NODATA_ZERO     0x0100
 #define LANCZOS_FLAG_NODATA_NEAREST  0x0200
+#define LANCZOS_FLAG_NODATA_LINEAR   0x0400
+#define LANCZOS_FLAG_NODATA_MASK     0x0700
 
 typedef struct
 {
 	uint32_t flags;
-	uint32_t a;
-	uint32_t channels;
-	uint32_t src_w;
-	uint32_t dst_w;
-	float* src; // n=src_w*channels
-	float* dst; // n=dst_w*channels
+	int32_t  a;
+	int32_t  channels;
+	int32_t  src_w;
+	int32_t  dst_w;
+	float*   src; // n=src_w*channels
+	float*   dst; // n=dst_w*channels
 } lanczos_paramRegular1D_t;
 
 typedef struct
 {
 	uint32_t flags;
-	uint32_t a;
-	uint32_t channels;
-	uint32_t src_w;
-	uint32_t src_h;
-	uint32_t dst_w;
-	uint32_t dst_h;
+	int32_t  a;
+	int32_t  channels;
+	int32_t  src_w;
+	int32_t  src_h;
+	int32_t  dst_w;
+	int32_t  dst_h;
 	float* src; // n=src_w*src_h*channels
 	float* dst; // n=dst_w*dst_h*channels
 } lanczos_paramRegular2D_t;
@@ -68,12 +70,12 @@ typedef struct
 typedef struct
 {
 	uint32_t flags;
-	uint32_t a;
-	uint32_t channels;
-	uint32_t src_count;
+	int32_t  a;
+	int32_t  channels;
+	int32_t  src_count;
 	float    src_x0;
 	float    src_x1;
-	uint32_t dst_w;
+	int32_t  dst_w;
 	float*   src; // n=src_count*(1 + channels) : {x,val}
 	float*   dst; // n=dst_w*channels
 } lanczos_paramIrregular1D_t;
@@ -81,15 +83,15 @@ typedef struct
 typedef struct
 {
 	uint32_t flags;
-	uint32_t a;
-	uint32_t channels;
-	uint32_t src_count;
+	int32_t  a;
+	int32_t  channels;
+	int32_t  src_count;
 	float    src_x0;
 	float    src_y0;
 	float    src_x1;
 	float    src_y1;
-	uint32_t dst_w;
-	uint32_t dst_h;
+	int32_t  dst_w;
+	int32_t  dst_h;
 	float*   src; // n=src_count*(2+channels) : {x,y,val}
 	float*   dst; // n=dst_w*dst_h*channels
 } lanczos_paramIrregular2D_t;

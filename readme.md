@@ -311,9 +311,91 @@ sample to accommodate the non-repeating values.
 Irregular Data
 --------------
 
-The Lanczos kernel can be used to resample irregularly
-spaced samples into a regular grid, a procedure often called
-gridding.
+Lanczos irregular interpolation is a technique used to
+resample irregularly spaced samples into a regular grid. It
+achieves this by assigning the irregularly spaced samples to
+a regular grid, a procedure often called binning, followed
+by convolution with a Lanczos kernel.
+
+Irregular Interpolation and Normalization:
+
+Once again, the interpolated signal s2 is calculated as a
+weighted sum of the original samples. However, an additional
+density compensation weight vj is required to account for
+the varying sample density of irregularly spaced samples.
+The irregular sample positions must also be transformed to
+a regular grid space via a mapping function.
+
+	s2[j] = (1/wj)*
+	        SUM(i = 0, i = N - 1, vj*s1[i]*L(xi2jf(xi) - j))
+
+	wj = SUM(i = 0, i = N - 1, vj*L(xi2jf(xi) - j))
+
+In practice, only samples which were assigned to grid cells
+within the support radius are considered.
+
+The Mapping Function:
+
+The functions xi2ji(xi) and xi2jf(xi) map a sample position
+from the irregular coordinate space to an index (integer or
+floating point) in the regular grid space. Given the bounds
+of the irregular space [x0,x1], the mapping is defined as:
+
+	xi2jf(xi) => jf = n2*(xi - x0)/(x1 - x0)
+	xi2ji(xi) => ji = (int) floor(xi2jf(xi))
+
+When xi=x1 then j=n2 which is out-of-bounds for s2[j].
+
+The Inverse Mapping Function:
+
+The functions ji2xi(ji) and jf2xi(jf) map an index (integer
+or floating point) in the regular grid space back to a
+sample position in the irregular coordinate space.
+
+	jf2xi(jf) => xi = x0 + (x1 - x0)*jf/n2
+	ji2xi(ji) => xi = jf2xi(ji + 0.5f)
+
+For example, given x0=0, x1=1 and n2=4.
+
+	       x0 <-------- xi ------> x1
+	        0    1/4   1/2   3/4    1
+	+-------+-----+-----+-----+-----+
+	| ji    |  0  |  1  |  2  |  3  |
+	| ji2xi | 1/8 | 3/8 | 5/8 | 7/8 |
+	+-------+-----+-----+-----+-----+
+
+Density Compensation:
+
+In many irregular datasets, samples are often clustered in
+specific regions. Without correction, these high-density
+clusters will disproportionately influence the interpolated
+result. To correct this, a density compensation weight vj
+is assigned to each regular grid cell. Samples contributing
+to dense cells receive a low weight, while those in isolated
+areas receive a high weight.
+
+The density weight for a regular grid cell j is calculated
+by summing the Lanczos kernel values for all irregular
+samples xi that fall within that cell's support radius.
+
+	vj = 1/(SUM(i = 0, i = N - 1, L(xi2jf(xi) - j)))
+
+Special Case Handling:
+
+* Zero-Weight Cancellations: Because the Lanczos kernel
+  contains negative lobes, it is mathematically possible for
+  a set of samples to yield a total sum of zero. To prevent
+  division by zero in this case, the implementation should
+  check if ∣SUM∣ < epsilon before calculating the
+  reciprocal.
+* Zero-Density Cells: When no samples exist within the
+  support radius, the summation is zero. In this case, vj is
+  typically set to 0 (zero-fill), resulting in an empty or
+  "null" region in the output grid.
+* Continuous Fallback: For applications requiring a
+  continuous signal, if the support window is empty, the
+  implementation may fallback to a nearest-neighbor search
+  or linear interpolation to fill the gap.
 
 Aliasing and Bandwidth:
 
@@ -331,80 +413,13 @@ than regular data because:
 
 * Search Overhead: The algorithm must locate which irregular
   samples xi fall within the support window of the output
-  point xj. This is typically handled by "binning" samples
+  point j. This is typically handled by binning samples
   into a spatial data structure.
 * No Precomputation: Since the distances between samples are
   arbitrary, the Lanczos coefficients cannot be precomputed
   into a repeating lookup table.
-* Larger Support: In sparse regions, it may be necessary to
-  increase the kernel radius a to ensure a sufficient number
-  of samples are captured for a stable interpolation.
-
-Irregular Interpolation and Normalization:
-
-To account for the varying density of samples, the
-interpolation must be normalized by the sum of the weights
-(wj). This ensures that areas with a high concentration of
-samples do not appear artificially "brighter."
-
-	s2[j] = (1/wj)*
-	        SUM(i = 0, i = N - 1, vj*s1[i]*L(fx[i] - xj))
-
-	wj = SUM(i = 0, i = N - 1, vj*L(fx[i] - xj))
-
-The Mapping Function:
-
-The function fx[i] maps a sample from the irregular
-coordinate space into the regular grid space. Given the
-bounds of the irregular space [x0,x1], the mapping is
-defined as:
-
-	fx[i] = n2*(xi - x0 + 0.5)/(x1 - x0 + 1)
-	j     = [0..n2)
-	xj    = j
-
-A sample s1[i] is included in the summation for output
-point j only if it falls within the kernel's support
-radius:
-
-	|fx[i] - xj| < a
-
-Density Compensation:
-
-In many irregular datasets, samples are not just randomly
-placed but are often clustered in specific regions. Without
-correction, these high-density clusters will
-disproportionately influence the interpolated result,
-leading to "hotspots" or artificial brightness in the
-reconstructed signal.
-
-To correct this, a density compensation weight (vj) is
-assigned to each grid cell. Samples contributing to dense
-cells receive a low weight, while those in isolated areas
-receive a high weight.
-
-The density weight for a grid cell xj is calculated by
-summing the Lanczos kernel values for all irregular samples
-xi that fall within that cell's support radius.
-
-	vj = 1/(SUM(i = 0, i = N - 1, L(fx[i] - xj)))
-
-Special Case Handling:
-
-* Zero-Density Cells: When no samples exist within the
-  support radius, the summation is zero. In this case, vj is
-  typically set to 0 (zero-fill), resulting in an empty or
-  "null" region in the output grid.
-* Zero-Weight Cancellations: Because the Lanczos kernel
-  contains negative lobes, it is mathematically possible for
-  a set of samples to yield a total sum of zero. To prevent
-  division by zero in this case, the implementation should
-  check if ∣SUM∣ < epsilon before calculating the
-  reciprocal.
-* Nearest Neighbor Fallback: For applications requiring a
-  continuous signal, if the support window is empty, the
-  implementation may fallback to a nearest-neighbor search
-  to fill the gap.
+* Density Compensation: Extra processing is required to
+  normalize density for irregularly spaced samples.
 
 Example: 1D Sine Test
 ---------------------
