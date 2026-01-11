@@ -321,81 +321,84 @@ Irregular Interpolation and Normalization:
 
 Once again, the interpolated signal s2 is calculated as a
 weighted sum of the original samples. However, an additional
-density compensation weight vj is required to account for
+density compensation weight vk is required to account for
 the varying sample density of irregularly spaced samples.
 The irregular sample positions must also be transformed to
 a regular grid space via a mapping function.
 
-	s2[j] = (1/wj)*
-	        SUM(i = 0, i = N - 1, vj*s1[i]*L(xi2jf(xi) - j))
+	wj = 0
+	for(k = j - a; k <= j + a; ++k)
+		wj += SUM(i = 0, i = N[k] - 1, vk*L(mapjf(xi[k]) - j))
 
-	wj = SUM(i = 0, i = N - 1, vj*L(xi2jf(xi) - j))
-
-In practice, only samples which were assigned to grid cells
-within the support radius are considered.
+	s2[j] = 0
+	if (abs(wj) > epsilon)
+		for(k = j - a; k <= j + a; ++k)
+			s2[j] += SUM(i = 0, i = N[k] - 1, vk*s1[i]*L(mapjf(xi[k]) - j))
+	    s2[j] *= 1/wj
 
 The Mapping Function:
 
-The functions xi2ji(xi) and xi2jf(xi) map a sample position
+The functions mapji(xi) and mapjf(xi) map a sample position
 from the irregular coordinate space to an index (integer or
 floating point) in the regular grid space. Given the bounds
 of the irregular space [x0,x1], the mapping is defined as:
 
-	xi2jf(xi) => jf = n2*(xi - x0)/(x1 - x0)
-	xi2ji(xi) => ji = (int) floor(xi2jf(xi))
+	mapjf(xi) => jf = n2*(xi - x0)/(x1 - x0)
+	mapji(xi) => ji = (int) floor(mapjf(xi))
 
 When xi=x1 then j=n2 which is out-of-bounds for s2[j].
 
 The Inverse Mapping Function:
 
-The functions ji2xi(ji) and jf2xi(jf) map an index (integer
-or floating point) in the regular grid space back to a
-sample position in the irregular coordinate space.
+The functions invji(ji) and invjf(jf) map an index (integer or
+floating point) in the regular grid space back to a sample
+position in the irregular coordinate space.
 
-	jf2xi(jf) => xi = x0 + (x1 - x0)*jf/n2
-	ji2xi(ji) => xi = jf2xi(ji + 0.5f)
+	invjf(jf) => xi = x0 + (x1 - x0)*jf/n2
+	invji(ji) => xi = invjf(ji + 0.5f)
 
 For example, given x0=0, x1=1 and n2=4.
 
-	       x0 <-------- xi ------> x1
-	        0    1/4   1/2   3/4    1
-	+-------+-----+-----+-----+-----+
-	| ji    |  0  |  1  |  2  |  3  |
-	| ji2xi | 1/8 | 3/8 | 5/8 | 7/8 |
-	+-------+-----+-----+-----+-----+
+	           x0 <-------- xi ------> x1
+	            0    1/4   1/2   3/4    1
+	+-----------+-----+-----+-----+-----+
+	| ji        |  0  |  1  |  2  |  3  |
+	| invji(ji) | 1/8 | 3/8 | 5/8 | 7/8 |
+	+-----------+-----+-----+-----+-----+
 
 Density Compensation:
 
 In many irregular datasets, samples are often clustered in
 specific regions. Without correction, these high-density
 clusters will disproportionately influence the interpolated
-result. To correct this, a density compensation weight vj
+result. To correct this, a density compensation weight vk
 is assigned to each regular grid cell. Samples contributing
 to dense cells receive a low weight, while those in isolated
 areas receive a high weight.
 
-The density weight for a regular grid cell j is calculated
+The density weight for a regular grid cell k is calculated
 by summing the Lanczos kernel values for all irregular
 samples xi that fall within that cell's support radius.
 
-	vj = 1/(SUM(i = 0, i = N - 1, L(xi2jf(xi) - j)))
+	sum_k = 0
+	for(m = k - a; m <= k + a; ++m)
+		sum_k += SUM(i = 0, i = N[m] - 1, L(mapjf(xi[m]) - k))
+
+	vk = (abs(sum_k) > epsilon) ? 1 / sum_k : 0
 
 Special Case Handling:
 
-* Zero-Weight Cancellations: Because the Lanczos kernel
-  contains negative lobes, it is mathematically possible for
-  a set of samples to yield a total sum of zero. To prevent
-  division by zero in this case, the implementation should
-  check if ∣SUM∣ < epsilon before calculating the
-  reciprocal.
 * Zero-Density Cells: When no samples exist within the
-  support radius, the summation is zero. In this case, vj is
+  support radius, the summation is zero. In this case, vk is
   typically set to 0 (zero-fill), resulting in an empty or
   "null" region in the output grid.
 * Continuous Fallback: For applications requiring a
   continuous signal, if the support window is empty, the
   implementation may fallback to a nearest-neighbor search
   or linear interpolation to fill the gap.
+* Edge Handling: The binning pass may extend the regular
+  grid to include cells that are within the support radius
+  in order to avoid special edge handling cases.
 
 Aliasing and Bandwidth:
 
