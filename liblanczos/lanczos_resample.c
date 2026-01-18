@@ -62,6 +62,28 @@ static float L(float x, float a)
 	return 0.0f;
 }
 
+static float
+mapjf1D(lanczos_paramIrregular1D_t* param, float xi)
+{
+	ASSERT(param);
+
+	float n2 = (float) param->dst_w;
+	float x0 = param->src_x0;
+	float x1 = param->src_x1;
+	return n2*(xi - x0)/(x1 - x0);
+}
+
+static float
+invjf1D(lanczos_paramIrregular1D_t* param, float jf)
+{
+	ASSERT(param);
+
+	float n2 = (float) param->dst_w;
+	float x0 = param->src_x0;
+	float x1 = param->src_x1;
+	return x0 + (x1 - x0)*jf/n2;
+}
+
 static void
 lanczos_irregularState_discard(lanczos_irregularState_t* state)
 {
@@ -351,15 +373,12 @@ lanczos_resample_binningPass1D(lanczos_paramIrregular1D_t* param,
 	int32_t ja;
 	float   xi;
 	float   jf;
-	float   n2 = (float) param->dst_w;
 	float   a  = (float) param->a;
-	float   x0 = param->src_x0;
-	float   x1 = param->src_x1;
 	for(i = 0; i < param->src_count; ++i)
 	{
-		// compute xi2jf
+		// compute jf
 		xi = param->src[src_stride*i + 0];
-		jf = n2*(xi - x0)/(x1 - x0);
+		jf = mapjf1D(param, xi);
 
 		// discard samples outside bin range
 		// shift j to allow for support samples outside (x0..x1)
@@ -398,12 +417,9 @@ lanczos_resample_fillHole1D(lanczos_paramIrregular1D_t* param,
 		return 0;
 	}
 
-	// compute jf2xi
-	float x0 = param->src_x0;
-	float x1 = param->src_x1;
-	float n2 = param->dst_w;
+	// compute xi
 	float jf = ((float) (ja - param->a)) + 0.5f;
-	float xi = x0 + (x1 - x0)*jf/n2;
+	float xi = invjf1D(param, jf);
 	dat[0]   = xi;
 
 	cc_listIter_t* dat_iter;
