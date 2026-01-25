@@ -28,7 +28,7 @@
 #define LOG_TAG "lanczos"
 #include "libcc/cc_log.h"
 #include "libcc/cc_memory.h"
-#include "liblanczos/lanczos_resample.h"
+#include "liblanczos/lanczos_regular1D.h"
 
 /***********************************************************
 * public                                                   *
@@ -42,7 +42,7 @@ int main(int argc, const char** argv)
 		return EXIT_FAILURE;
 	}
 
-	lanczos_paramRegular1D_t param =
+	lanczos_regular1D_t param =
 	{
 		.flags    = 0,
 		.a        = (int32_t) strtol(argv[1], NULL, 0),
@@ -98,7 +98,7 @@ int main(int argc, const char** argv)
 	}
 
 	// resample data
-	if(lanczos_resample_regular1D(&param) == 0)
+	if(lanczos_regular1D_resample(&param) == 0)
 	{
 		goto fail_resample;
 	}

@@ -29,7 +29,7 @@
 #include "libcc/rng/cc_rngUniform.h"
 #include "libcc/cc_log.h"
 #include "libcc/cc_memory.h"
-#include "liblanczos/lanczos_resample.h"
+#include "liblanczos/lanczos_irregular1D.h"
 
 /***********************************************************
 * public                                                   *
@@ -46,7 +46,7 @@ int main(int argc, const char** argv)
 	cc_rngUniform_t rng;
 	cc_rngUniform_init(&rng);
 
-	lanczos_paramIrregular1D_t param =
+	lanczos_irregular1D_t param =
 	{
 		.flags     = 0,
 		.a         = (int32_t) strtol(argv[1], NULL, 0),
@@ -110,7 +110,7 @@ int main(int argc, const char** argv)
 	}
 
 	// resample data
-	if(lanczos_resample_irregular1D(&param) == 0)
+	if(lanczos_irregular1D_resample(&param) == 0)
 	{
 		goto fail_resample;
 	}
