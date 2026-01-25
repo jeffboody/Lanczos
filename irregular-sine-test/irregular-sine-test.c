@@ -57,34 +57,38 @@ int main(int argc, const char** argv)
 		.dst_w     = (int32_t) strtol(argv[3], NULL, 0),
 	};
 
-	int32_t stride = 1 + param.channels;
-	int32_t count  = param.src_count*stride;
-
-	param.src = (float*) CALLOC(count, sizeof(float));
+	param.src = (float*)
+	            CALLOC(2*param.src_count, sizeof(float));
 	if(param.src == NULL)
 	{
 		LOGE("CALLOC failed");
 		return EXIT_FAILURE;
 	}
 
-	param.dst = (float*) CALLOC(param.dst_w, sizeof(float));
+	param.dst = (float*)
+	            CALLOC(param.dst_w, sizeof(float));
 	if(param.dst == NULL)
 	{
 		LOGE("CALLOC failed");
 		goto fail_dst;
 	}
 
-	// generate src data
+	// generate src data including irregular support samples
 	float   x;
 	float   y;
 	int32_t i;
+	float   dst_w  = (float) param.dst_w;
+	float   a1     = (float) param.a;
+	float   a2     = 2.0f*a1;
+	float   range  = 2.0f*M_PI*(dst_w + a2)/dst_w;
+	float   offset = 2.0f*M_PI*a1/dst_w;
 	for(i = 0; i < param.src_count; ++i)
 	{
-		x = 2.0f*M_PI*cc_rngUniform_rand1F(&rng);
+		x = range*cc_rngUniform_rand1F(&rng) - offset;
 		y = sinf(x);
 
-		param.src[stride*i + 0] = x;
-		param.src[stride*i + 1] = y;
+		param.src[2*i + 0] = x;
+		param.src[2*i + 1] = y;
 	}
 
 	char src_dat[256];
