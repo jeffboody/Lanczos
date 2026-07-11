@@ -38,7 +38,7 @@ int main(int argc, const char** argv)
 {
 	if(argc != 4)
 	{
-		LOGI("usage: %s a src_w dst_w", argv[0]);
+		LOGI("usage: %s a n1 n2", argv[0]);
 		return EXIT_FAILURE;
 	}
 
@@ -47,54 +47,54 @@ int main(int argc, const char** argv)
 		.flags    = 0,
 		.a        = (int32_t) strtol(argv[1], NULL, 0),
 		.channels = 1,
-		.src_w    = (int32_t) strtol(argv[2], NULL, 0),
-		.dst_w    = (int32_t) strtol(argv[3], NULL, 0),
+		.n1       = (int32_t) strtol(argv[2], NULL, 0),
+		.n2       = (int32_t) strtol(argv[3], NULL, 0),
 	};
 
-	param.src = (float*) CALLOC(param.src_w, sizeof(float));
-	if(param.src == NULL)
+	param.s1 = (float*) CALLOC(param.n1, sizeof(float));
+	if(param.s1 == NULL)
 	{
 		LOGE("CALLOC failed");
 		return EXIT_FAILURE;
 	}
 
-	param.dst = (float*) CALLOC(param.dst_w, sizeof(float));
-	if(param.dst == NULL)
+	param.s2 = (float*) CALLOC(param.n2, sizeof(float));
+	if(param.s2 == NULL)
 	{
 		LOGE("CALLOC failed");
 		goto fail_dst;
 	}
 
-	// generate src data
+	// generate s1 data
 	float   a;
-	float   b = (float) (param.src_w - 1);
+	float   b = (float) (param.n1 - 1);
 	int32_t i;
-	for(i = 0; i < param.src_w; ++i)
+	for(i = 0; i < param.n1; ++i)
 	{
 		a = (float) i;
-		param.src[i] = sinf(2.0f*M_PI*a/b);
+		param.s1[i] = sinf(2.0f*M_PI*a/b);
 	}
 
-	char src_dat[256];
-	char dst_dat[256];
-	snprintf(src_dat, 256, "sine-%u-%u.dat",
-	         param.a, param.src_w);
-	snprintf(dst_dat, 256, "sine-%u-%u-%u.dat",
-	         param.a, param.src_w, param.dst_w);
+	char s1_dat[256];
+	char s2_dat[256];
+	snprintf(s1_dat, 256, "sine-%u-%u.dat",
+	         param.a, param.n1);
+	snprintf(s2_dat, 256, "sine-%u-%u-%u.dat",
+	         param.a, param.n1, param.n2);
 
 	// open data files
-	FILE* fsrc_dat = fopen(src_dat, "w");
-	if(fsrc_dat == NULL)
+	FILE* fs1_dat = fopen(s1_dat, "w");
+	if(fs1_dat == NULL)
 	{
-		LOGE("fopen %s failed", src_dat);
-		goto fail_fsrc_dat;
+		LOGE("fopen %s failed", s1_dat);
+		goto fail_fs1_dat;
 	}
 
-	FILE* fdst_dat = fopen(dst_dat, "w");
-	if(fdst_dat == NULL)
+	FILE* fs2_dat = fopen(s2_dat, "w");
+	if(fs2_dat == NULL)
 	{
-		LOGE("fopen %s failed", dst_dat);
-		goto fail_fdst_dat;
+		LOGE("fopen %s failed", s2_dat);
+		goto fail_fs2_dat;
 	}
 
 	// resample data
@@ -103,39 +103,39 @@ int main(int argc, const char** argv)
 		goto fail_resample;
 	}
 
-	// export src data
-	for(i = 0; i < param.src_w; ++i)
+	// export s1 data
+	for(i = 0; i < param.n1; ++i)
 	{
-		fprintf(fsrc_dat, "%f %f\n", (float) i, param.src[i]);
+		fprintf(fs1_dat, "%f %f\n", (float) i, param.s1[i]);
 	}
 
-	// export dst data
+	// export s2 data
 	int32_t j;
 	float   xj;
-	float   step = ((float) param.src_w)/
-	               ((float) param.dst_w);
-	for(j = 0; j < param.dst_w; ++j)
+	float   step = ((float) param.n1)/
+	               ((float) param.n2);
+	for(j = 0; j < param.n2; ++j)
 	{
 		xj = (j + 0.5f)*step - 0.5f;
-		fprintf(fdst_dat, "%f %f\n", xj, param.dst[j]);
+		fprintf(fs2_dat, "%f %f\n", xj, param.s2[j]);
 	}
 
-	fclose(fdst_dat);
-	fclose(fsrc_dat);
-	FREE(param.dst);
-	FREE(param.src);
+	fclose(fs2_dat);
+	fclose(fs1_dat);
+	FREE(param.s2);
+	FREE(param.s1);
 
 	// success
 	return EXIT_SUCCESS;
 
 	// failure
 	fail_resample:
-		fclose(fdst_dat);
-	fail_fdst_dat:
-		fclose(fsrc_dat);
-	fail_fsrc_dat:
-		FREE(param.dst);
+		fclose(fs2_dat);
+	fail_fs2_dat:
+		fclose(fs1_dat);
+	fail_fs1_dat:
+		FREE(param.s2);
 	fail_dst:
-		FREE(param.src);
+		FREE(param.s1);
 	return EXIT_FAILURE;
 }

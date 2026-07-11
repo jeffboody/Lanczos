@@ -60,8 +60,7 @@ lanczos_regular1D_resampleFast(lanczos_regular1D_t* self,
 
 	float xj;
 	float x;
-	float step = ((float) self->src_w)/
-	             ((float) self->dst_w);
+	float step = ((float) self->n1)/((float) self->n2);
 
 	// precompute Lanczos kernel coefficients and
 	// normalizing weights
@@ -97,19 +96,19 @@ lanczos_regular1D_resampleFast(lanczos_regular1D_t* self,
 
 	// commpute s2[j]
 	int32_t ch;
-	int32_t nch = self->channels;
+	int32_t channels = self->channels;
 	int32_t ii;
 	int32_t jj;
-	int32_t s1x;
+	int32_t xi;
 	float   sum;
-	float*  s1 = self->src;
-	float*  s2 = self->dst;
-	for(ch = 0; ch < nch; ++ch)
+	float*  s1 = self->s1;
+	float*  s2 = self->s2;
+	for(ch = 0; ch < channels; ++ch)
 	{
 		// reset idx
 		idx = 0;
 
-		for(j = 0; j < self->dst_w; ++j)
+		for(j = 0; j < self->n2; ++j)
 		{
 			sum = 0.0f;
 			jj  = j%phases;
@@ -117,11 +116,11 @@ lanczos_regular1D_resampleFast(lanczos_regular1D_t* self,
 			for(i = i0; i <= i1; ++i)
 			{
 				// Edge Handling
-				s1x = ((int32_t) floorf(xj)) + i;
+				xi = ((int32_t) floorf(xj)) + i;
 				if(self->flags & LANCZOS_FLAG_EDGE_ZERO_PADDING)
 				{
 					// Zero Padding
-					if((s1x < 0) || (s1x >= (self->src_w - 1)))
+					if((xi < 0) || (xi >= self->n1))
 					{
 						++idx;
 						continue;
@@ -130,23 +129,23 @@ lanczos_regular1D_resampleFast(lanczos_regular1D_t* self,
 				else
 				{
 					// Clamping
-					if(s1x < 0)
+					if(xi < 0)
 					{
-						s1x = 0;
+						xi = 0;
 					}
-					else if(s1x >= self->src_w)
+					else if(xi >= self->n1)
 					{
-						s1x = self->src_w - 1;
+						xi = self->n1 - 1;
 					}
 				}
 
 				ii   = idx%N;
-				sum += s1[nch*s1x + ch]*lcoef[ii];
+				sum += s1[channels*xi + ch]*lcoef[ii];
 				++idx;
 			}
 
 			// Preserving Flux Normalization
-			s2[nch*j + ch] = sum/wj[jj];
+			s2[channels*j + ch] = sum/wj[jj];
 		}
 	}
 
@@ -170,31 +169,30 @@ lanczos_regular1D_resampleSlow(lanczos_regular1D_t* self)
 	ASSERT(self);
 
 	float fs = 1.0f;
-	if(self->dst_w < self->src_w)
+	if(self->n2 < self->n1)
 	{
-		fs = ((float) self->src_w)/((float) self->dst_w);
+		fs = ((float) self->n1)/((float) self->n2);
 	}
 
-	float step = ((float) self->src_w)/
-	             ((float) self->dst_w);
+	float step = ((float) self->n1)/((float) self->n2);
 
 	// commpute s2[j]
 	int32_t ch;
-	int32_t nch = self->channels;
+	int32_t channels = self->channels;
 	int32_t j;
 	int32_t i;
 	int32_t i0;
 	int32_t i1;
-	int32_t s1x;
+	int32_t xi;
 	float   sum;
 	float   xj;
 	float   wj;
 	float   lcoef;
-	float*  s1 = self->src;
-	float*  s2 = self->dst;
-	for(ch = 0; ch < nch; ++ch)
+	float*  s1 = self->s1;
+	float*  s2 = self->s2;
+	for(ch = 0; ch < channels; ++ch)
 	{
-		for(j = 0; j < self->dst_w; ++j)
+		for(j = 0; j < self->n2; ++j)
 		{
 			sum = 0.0f;
 			wj  = 0.0f;
@@ -204,11 +202,11 @@ lanczos_regular1D_resampleSlow(lanczos_regular1D_t* self)
 			for(i = i0; i <= i1; ++i)
 			{
 				// Edge Handling
-				s1x = ((int32_t) floorf(xj)) + i;
+				xi = ((int32_t) floorf(xj)) + i;
 				if(self->flags & LANCZOS_FLAG_EDGE_ZERO_PADDING)
 				{
 					// Zero Padding
-					if((s1x < 0) || (s1x >= (self->src_w - 1)))
+					if((xi < 0) || (xi >= self->n1))
 					{
 						continue;
 					}
@@ -216,24 +214,24 @@ lanczos_regular1D_resampleSlow(lanczos_regular1D_t* self)
 				else
 				{
 					// Clamping
-					if(s1x < 0)
+					if(xi < 0)
 					{
-						s1x = 0;
+						xi = 0;
 					}
-					else if(s1x >= self->src_w)
+					else if(xi >= self->n1)
 					{
-						s1x = self->src_w - 1;
+						xi = self->n1 - 1;
 					}
 				}
 
 				lcoef = lanczos_kernel((i - xj + floor(xj))/fs,
 				                       self->a);
-				sum  += s1[nch*s1x + ch]*lcoef;
+				sum  += s1[channels*xi + ch]*lcoef;
 				wj   += lcoef;
 			}
 
 			// Preserving Flux Normalization
-			s2[nch*j + ch] = sum/wj;
+			s2[channels*j + ch] = sum/wj;
 		}
 	}
 
@@ -247,31 +245,31 @@ lanczos_regular1D_resampleSlow(lanczos_regular1D_t* self)
 int lanczos_regular1D_resample(lanczos_regular1D_t* self)
 {
 	ASSERT(self);
-	ASSERT(self->src);
-	ASSERT(self->dst);
+	ASSERT(self->s1);
+	ASSERT(self->s2);
 
 	// detect resampling fast paths
-	if(self->dst_w >= self->src_w)
+	if(self->n2 >= self->n1)
 	{
-		if((self->dst_w % self->src_w) == 0)
+		if((self->n2 % self->n1) == 0)
 		{
 			// Upsampling (Fast Path)
 			// Resampling Factor: S = n2/n1
 			// Total Coefficients: N = S*2*a
 			// Filter Scale: 1
-			int32_t S  = self->dst_w/self->src_w;
+			int32_t S  = self->n2/self->n1;
 			int32_t N  = S*2*self->a;
 			int32_t fs = 1;
 			return lanczos_regular1D_resampleFast(self, S, N, fs);
 		}
 	}
-	else if((self->src_w % self->dst_w) == 0)
+	else if((self->n1 % self->n2) == 0)
 	{
 		// Downsampling (Fast Path)
 		// Resampling Factor: S = 1/D = n2/n1
 		// Total Coefficients: N = D*2*a
 		// Filter Scale: fs = n1/n2
-		int32_t D  = self->src_w/self->dst_w;
+		int32_t D  = self->n1/self->n2;
 		int32_t N  = D*2*self->a;
 		int32_t fs = D;
 		return lanczos_regular1D_resampleFast(self, 1, N, fs);
