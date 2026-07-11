@@ -39,7 +39,7 @@ int main(int argc, const char** argv)
 {
 	if(argc != 4)
 	{
-		LOGI("usage: %s a src_count dst_w", argv[0]);
+		LOGI("usage: %s a s1_count n2", argv[0]);
 		return EXIT_FAILURE;
 	}
 
@@ -48,69 +48,69 @@ int main(int argc, const char** argv)
 
 	lanczos_irregular1D_t param =
 	{
-		.flags     = 0,
-		.a         = (int32_t) strtol(argv[1], NULL, 0),
-		.channels  = 1,
-		.src_count = (int32_t) strtol(argv[2], NULL, 0),
-		.src_x0    = 0.0f,
-		.src_x1    = 2.0f*M_PI,
-		.dst_w     = (int32_t) strtol(argv[3], NULL, 0),
+		.flags    = 0,
+		.a        = (int32_t) strtol(argv[1], NULL, 0),
+		.channels = 1,
+		.s1_count = (int32_t) strtol(argv[2], NULL, 0),
+		.x0       = 0.0f,
+		.x1       = 2.0f*M_PI,
+		.n2       = (int32_t) strtol(argv[3], NULL, 0),
 	};
 
-	param.src = (float*)
-	            CALLOC(2*param.src_count, sizeof(float));
-	if(param.src == NULL)
+	param.s1 = (float*)
+	           CALLOC(2*param.s1_count, sizeof(float));
+	if(param.s1 == NULL)
 	{
 		LOGE("CALLOC failed");
 		return EXIT_FAILURE;
 	}
 
-	param.dst = (float*)
-	            CALLOC(param.dst_w, sizeof(float));
-	if(param.dst == NULL)
+	param.s2 = (float*)
+	           CALLOC(param.n2, sizeof(float));
+	if(param.s2 == NULL)
 	{
 		LOGE("CALLOC failed");
-		goto fail_dst;
+		goto fail_s2;
 	}
 
-	// generate src data including irregular support samples
+	// generate s1 including irregular support samples
 	float   x;
 	float   y;
 	int32_t i;
-	float   dst_w  = (float) param.dst_w;
+	float   n2     = (float) param.n2;
 	float   a1     = (float) param.a;
 	float   a2     = 2.0f*a1;
-	float   range  = 2.0f*M_PI*(dst_w + a2)/dst_w;
-	float   offset = 2.0f*M_PI*a1/dst_w;
-	for(i = 0; i < param.src_count; ++i)
+	float   range  = 2.0f*M_PI*(n2 + a2)/n2;
+	float   offset = 2.0f*M_PI*a1/n2;
+	for(i = 0; i < param.s1_count; ++i)
 	{
 		x = range*cc_rngUniform_rand1F(&rng) - offset;
 		y = sinf(x);
 
-		param.src[2*i + 0] = x;
-		param.src[2*i + 1] = y;
+		param.s1[2*i + 0] = x;
+		param.s1[2*i + 1] = y;
 	}
 
-	char src_dat[256];
-	char dst_dat[256];
-	snprintf(src_dat, 256, "irregular-sine-%u-%u.dat",
-	         param.a, param.src_count);
-	snprintf(dst_dat, 256, "irregular-sine-%u-%u-%u.dat",
-	         param.a, param.src_count, param.dst_w);
+	char s1_dat[256];
+	char s2_dat[256];
+	snprintf(s1_dat, 256, "irregular-sine-%u-%u.dat",
+	         param.a, param.s1_count);
+	snprintf(s2_dat, 256, "irregular-sine-%u-%u-%u.dat",
+	         param.a, param.s1_count, param.n2);
 
 	// open data files
-	FILE* fsrc_dat = fopen(src_dat, "w");
-	if(fsrc_dat == NULL)
+	FILE* fs1_dat = fopen(s1_dat, "w");
+	if(fs1_dat == NULL)
 	{
-		LOGE("fopen %s failed", src_dat);
-		goto fail_fsrc_dat;
+		LOGE("fopen %s failed", s1_dat);
+		goto fail_fs1_dat;
 	}
 
-	FILE* fdst_dat = fopen(dst_dat, "w");
-	if(fdst_dat == NULL)
+	FILE* fs2_dat = fopen(s2_dat, "w");
+	if(fs2_dat == NULL)
 	{
-		LOGE("fopen %s failed", dst_dat);
-		goto fail_fdst_dat;
+		LOGE("fopen %s failed", s2_dat);
+		goto fail_fs2_dat;
 	}
 
 	// resample data
@@ -119,42 +119,41 @@ int main(int argc, const char** argv)
 		goto fail_resample;
 	}
 
-	// export src data
-	for(i = 0; i < param.src_count; ++i)
+	// export s1 data
+	for(i = 0; i < param.s1_count; ++i)
 	{
-		fprintf(fsrc_dat, "%f %f\n",
-		        param.src[2*i + 0],
-		        param.src[2*i + 1]);
+		fprintf(fs1_dat, "%f %f\n",
+		        param.s1[2*i + 0],
+		        param.s1[2*i + 1]);
 	}
 
-	// export dst data
+	// export s2 data
 	int32_t j;
 	float   xj;
-	float   x0 = param.src_x0;
-	float   x1 = param.src_x1;
-	float   w  = (float) param.dst_w;
-	for(j = 0; j < param.dst_w; ++j)
+	float   x0 = param.x0;
+	float   x1 = param.x1;
+	for(j = 0; j < param.n2; ++j)
 	{
-		xj = x0 + (x1 - x0)*(j + 0.5f)/w;
-		fprintf(fdst_dat, "%f %f\n", xj, param.dst[j]);
+		xj = x0 + (x1 - x0)*(j + 0.5f)/n2;
+		fprintf(fs2_dat, "%f %f\n", xj, param.s2[j]);
 	}
 
-	fclose(fdst_dat);
-	fclose(fsrc_dat);
-	FREE(param.dst);
-	FREE(param.src);
+	fclose(fs2_dat);
+	fclose(fs1_dat);
+	FREE(param.s2);
+	FREE(param.s1);
 
 	// success
 	return EXIT_SUCCESS;
 
 	// failure
 	fail_resample:
-		fclose(fdst_dat);
-	fail_fdst_dat:
-		fclose(fsrc_dat);
-	fail_fsrc_dat:
-		FREE(param.dst);
-	fail_dst:
-		FREE(param.src);
+		fclose(fs2_dat);
+	fail_fs2_dat:
+		fclose(fs1_dat);
+	fail_fs1_dat:
+		FREE(param.s2);
+	fail_s2:
+		FREE(param.s1);
 	return EXIT_FAILURE;
 }

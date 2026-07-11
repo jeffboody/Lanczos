@@ -39,9 +39,11 @@
 
 typedef struct
 {
-	int32_t     bin_count;
-	cc_list_t** bins;
-	cc_list_t*  holes;
+	// bins contain pointers to s1 or hole elements
+	// which covers the s2 samples and support window
+	int32_t     bin_count; // bin_count = n2 + 2*a
+	cc_list_t** bins;      // size = bin_count
+	cc_list_t*  holes;     // element_size = 1 + channels
 } lanczos_irregularState_t;
 
 static void
@@ -128,9 +130,9 @@ lanczos_irregular1D_mapjf(lanczos_irregular1D_t* self,
 {
 	ASSERT(self);
 
-	float n2 = (float) self->dst_w;
-	float x0 = self->src_x0;
-	float x1 = self->src_x1;
+	float n2 = (float) self->n2;
+	float x0 = self->x0;
+	float x1 = self->x1;
 	return n2*(xi - x0)/(x1 - x0);
 }
 
@@ -140,9 +142,9 @@ lanczos_irregular1D_invjf(lanczos_irregular1D_t* self,
 {
 	ASSERT(self);
 
-	float n2 = (float) self->dst_w;
-	float x0 = self->src_x0;
-	float x1 = self->src_x1;
+	float n2 = (float) self->n2;
+	float x0 = self->x0;
+	float x1 = self->x1;
 	return x0 + (x1 - x0)*jf/n2;
 }
 
@@ -153,7 +155,7 @@ lanczos_irregular1D_binningPass(lanczos_irregular1D_t* self,
 	ASSERT(self);
 	ASSERT(state);
 
-	int32_t src_stride = 1 + self->channels;
+	int32_t s1_stride = 1 + self->channels;
 
 	// binning pass
 	int32_t i;
@@ -161,10 +163,10 @@ lanczos_irregular1D_binningPass(lanczos_irregular1D_t* self,
 	float   xi;
 	float   jf;
 	float   a  = (float) self->a;
-	for(i = 0; i < self->src_count; ++i)
+	for(i = 0; i < self->s1_count; ++i)
 	{
 		// compute jf
-		xi = self->src[src_stride*i + 0];
+		xi = self->s1[s1_stride*i + 0];
 		jf = lanczos_irregular1D_mapjf(self, xi);
 
 		// discard samples outside bin range
@@ -177,7 +179,7 @@ lanczos_irregular1D_binningPass(lanczos_irregular1D_t* self,
 
 		// store dat in list
 		if(cc_list_append(state->bins[ja], NULL,
-		                  &self->src[src_stride*i]) == NULL)
+		                  &self->s1[s1_stride*i]) == NULL)
 		{
 			return 0;
 		}
@@ -194,10 +196,10 @@ lanczos_irregular1D_fillHole(lanczos_irregular1D_t* self,
 	ASSERT(self);
 	ASSERT(state);
 
-	int32_t channels   = self->channels;
-	int32_t src_stride = 1 + channels;
+	int32_t channels  = self->channels;
+	int32_t s1_stride = 1 + channels;
 
-	float* dat = (float*) CALLOC(src_stride, sizeof(float));
+	float* dat = (float*) CALLOC(s1_stride, sizeof(float));
 	if(dat == NULL)
 	{
 		LOGE("CALLOC failed");
@@ -354,10 +356,8 @@ int
 lanczos_irregular1D_resample(lanczos_irregular1D_t* self)
 {
 	ASSERT(self);
-	ASSERT(self->src);
-	ASSERT(self->dst);
 
-	int32_t bin_count = self->dst_w + 2*self->a;
+	int32_t bin_count = self->n2 + 2*self->a;
 
 	lanczos_irregularState_t state = { 0 };
 	if(lanczos_irregularState_init(&state, bin_count) == 0)

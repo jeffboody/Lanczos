@@ -31,12 +31,12 @@ typedef struct
 	uint32_t flags;
 	int32_t  a;
 	int32_t  channels;
-	int32_t  src_count;
-	float    src_x0;
-	float    src_x1;
-	int32_t  dst_w;
-	float*   src;
-	float*   dst;
+	int32_t  s1_count;
+	float    x0;
+	float    x1;
+	int32_t  n2;
+	float*   s1; // size = (1 + channels)*s1_count
+	float*   s2; // size = channels*n2
 } lanczos_irregular1D_t;
 
 int lanczos_irregular1D_resample(lanczos_irregular1D_t* self);
