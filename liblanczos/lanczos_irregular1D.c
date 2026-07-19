@@ -21,6 +21,7 @@
  *
  */
 
+#include <float.h>
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>
@@ -44,12 +45,18 @@ typedef struct
 	int32_t     bin_count; // bin_count = n2 + 2*a
 	cc_list_t** bins;      // size = bin_count
 	cc_list_t*  holes;     // element_size = 1 + channels
+
+	// density coefficients
+	float* vk;
 } lanczos_irregularState_t;
 
 static void
 lanczos_irregularState_discard(lanczos_irregularState_t* state)
 {
 	ASSERT(state);
+
+	FREE(state->vk);
+	state->vk = NULL;
 
 	cc_listIter_t* iter;
 	if(state->holes)
@@ -110,6 +117,13 @@ lanczos_irregularState_init(lanczos_irregularState_t* state,
 	}
 
 	state->bin_count = bin_count;
+
+	// create density coefficients
+	state->vk = (float*) CALLOC(bin_count, sizeof(float));
+	if(state->vk == NULL)
+	{
+		goto failure;
+	}
 
 	// success
 	return 1;
@@ -344,7 +358,43 @@ lanczos_irregular1D_resamplePass(lanczos_irregular1D_t* self,
 	ASSERT(self);
 	ASSERT(state);
 
-	// TODO - lanczos_irregular1D_resamplePass
+	// compute vk
+	int32_t k;
+	int32_t kk;
+	int32_t a       = self->a;
+	float   sum_k   = 0.0f;
+	float   epsilon = FLT_EPSILON;
+	float*  xi;
+	float   jf;
+	float   ka;
+	cc_listIter_t* iter;
+	for(k = 0; k < state->bin_count; ++k)
+	{
+		sum_k = 0.0f;
+
+		// shift k into signal index space
+		ka = (float) (k - a);
+
+		for(kk = k - a; kk <= k + a; ++kk)
+		{
+			if((kk < 0) || (kk >= state->bin_count))
+			{
+				continue;
+			}
+
+			iter = cc_list_head(state->bins[kk]);
+			while(iter)
+			{
+				xi     = (float*) cc_list_peekIter(iter);
+				jf     = lanczos_irregular1D_mapjf(self, xi[0]);
+				sum_k += lanczos_kernel(jf - ka, a);
+				iter   = cc_list_next(iter);
+			}
+		}
+
+		state->vk[k] = (fabsf(sum_k) > epsilon) ? 1.0f/sum_k : 0.0f;
+	}
+
 	return 1;
 }
 
