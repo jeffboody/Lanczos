@@ -317,6 +317,14 @@ achieves this by assigning the irregularly spaced samples to
 a regular grid, a procedure often called binning, followed
 by convolution with a Lanczos kernel.
 
+Legend for Irregular Indexes
+
+* j:  Index in s2 array
+* jj: Shifted index in s2 array
+* k:  Grid cell index
+* kk: Shifted grid cell index
+* i:  Grid cell item index
+
 Irregular Interpolation and Normalization:
 
 Once again, the interpolated signal s2 is calculated as a
@@ -327,13 +335,13 @@ The irregular sample positions must also be transformed to
 a regular grid space via a mapping function.
 
 	wj = 0
-	for(k = j - a; k <= j + a; ++k)
-		wj += SUM(i = 0, i = N[k] - 1, vk*L(mapjf(xi[k]) - j))
+	for(jj = j - a; jj <= j + a; ++jj)
+		wj += SUM(i = 0, i = N[jj] - 1, vk*L(mapjf(xi[jj]) - j))
 
 	s2[j] = 0
 	if (abs(wj) > epsilon)
-		for(k = j - a; k <= j + a; ++k)
-			s2[j] += SUM(i = 0, i = N[k] - 1, vk*s1[i]*L(mapjf(xi[k]) - j))
+		for(jj = j - a; jj <= j + a; ++jj)
+			s2[j] += SUM(i = 0, i = N[jj] - 1, vk*s1[i]*L(mapjf(xi[jj]) - j))
 	    s2[j] *= 1/wj
 
 The Mapping Function:
@@ -378,11 +386,13 @@ areas receive a high weight.
 
 The density weight for a regular grid cell k is calculated
 by summing the Lanczos kernel values for all irregular
-samples xi that fall within that cell's support radius.
+samples xi that fall within that cell's support radius. Grid
+cell indexes must be shifted since bins are extended beyond
+the signal by the support radius.
 
 	sum_k = 0
-	for(m = k - a; m <= k + a; ++m)
-		sum_k += SUM(i = 0, i = N[m] - 1, L(mapjf(xi[m]) - k))
+	for(kk = k - a; kk <= k + a; ++kk)
+		sum_k += SUM(i = 0, i = N[kk] - 1, L(mapjf(xi[kk - a]) - (k - a)))
 
 	vk = (abs(sum_k) > epsilon) ? 1 / sum_k : 0
 
