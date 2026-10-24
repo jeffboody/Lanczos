@@ -27,9 +27,9 @@ The subsequent sections delve into crucial aspects of
 Lanczos resampling, such as the Lanczos kernel,
 interpolation and resampling processes, flux preservation,
 upsampling, downsampling, sample positioning, output range,
-multidimensional interpolation, separability, precomputed
-kernel optimization, and irregular data. A practical example
-with accompanying source code is included.
+multidimensional interpolation, separability, and precomputed
+kernel optimization. A practical example with accompanying
+source code is included.
 
 Lanczos Kernel
 --------------
@@ -307,132 +307,6 @@ integer or reciprocal conditions, the algorithm must fall
 back to a "slow path." In this mode, the Lanczos
 coefficients are computed at runtime for every individual
 sample to accommodate the non-repeating values.
-
-Irregular Data
---------------
-
-Lanczos irregular interpolation is a technique used to
-resample irregularly spaced samples into a regular grid. It
-achieves this by assigning the irregularly spaced samples to
-a regular grid, a procedure often called binning, followed
-by convolution with a Lanczos kernel.
-
-Legend for Irregular Indexes
-
-* j:  Index in s2 array
-* jj: Shifted index in s2 array
-* k:  Grid cell index
-* kk: Shifted grid cell index
-* i:  Grid cell item index
-
-Irregular Interpolation and Normalization:
-
-Once again, the interpolated signal s2 is calculated as a
-weighted sum of the original samples. However, an additional
-density compensation weight vk is required to account for
-the varying sample density of irregularly spaced samples.
-The irregular sample positions must also be transformed to
-a regular grid space via a mapping function.
-
-	wj = 0
-	for(jj = j - a; jj <= j + a; ++jj)
-		wj += SUM(i = 0, i = N[jj] - 1, vk*L(mapjf(xi[jj]) - j))
-
-	s2[j] = 0
-	if (abs(wj) > epsilon)
-		for(jj = j - a; jj <= j + a; ++jj)
-			s2[j] += SUM(i = 0, i = N[jj] - 1, vk*s1[i]*L(mapjf(xi[jj]) - j))
-	    s2[j] *= 1/wj
-
-The Mapping Function:
-
-The functions mapji(xi) and mapjf(xi) map a sample position
-from the irregular coordinate space to an index (integer or
-floating point) in the regular grid space. Given the bounds
-of the irregular space [x0,x1], the mapping is defined as:
-
-	mapjf(xi) => jf = n2*(xi - x0)/(x1 - x0)
-	mapji(xi) => ji = (int) floor(mapjf(xi))
-
-When xi=x1 then j=n2 which is out-of-bounds for s2[j].
-
-The Inverse Mapping Function:
-
-The functions invji(ji) and invjf(jf) map an index (integer or
-floating point) in the regular grid space back to a sample
-position in the irregular coordinate space.
-
-	invjf(jf) => xi = x0 + (x1 - x0)*jf/n2
-	invji(ji) => xi = invjf(ji + 0.5f)
-
-For example, given x0=0, x1=1 and n2=4.
-
-	           x0 <-------- xi ------> x1
-	            0    1/4   1/2   3/4    1
-	+-----------+-----+-----+-----+-----+
-	| ji        |  0  |  1  |  2  |  3  |
-	| invji(ji) | 1/8 | 3/8 | 5/8 | 7/8 |
-	+-----------+-----+-----+-----+-----+
-
-Density Compensation:
-
-In many irregular datasets, samples are often clustered in
-specific regions. Without correction, these high-density
-clusters will disproportionately influence the interpolated
-result. To correct this, a density compensation weight vk
-is assigned to each regular grid cell. Samples contributing
-to dense cells receive a low weight, while those in isolated
-areas receive a high weight.
-
-The density weight for a regular grid cell k is calculated
-by summing the Lanczos kernel values for all irregular
-samples xi that fall within that cell's support radius. Grid
-cell indexes must be shifted since bins are extended beyond
-the signal by the support radius.
-
-	sum_k = 0
-	for(kk = k - a; kk <= k + a; ++kk)
-		sum_k += SUM(i = 0, i = N[kk] - 1, L(mapjf(xi[kk - a]) - (k - a)))
-
-	vk = (abs(sum_k) > epsilon) ? 1 / sum_k : 0
-
-Special Case Handling:
-
-* Zero-Density Cells: When no samples exist within the
-  support radius, the summation is zero. In this case, vk is
-  typically set to 0 (zero-fill), resulting in an empty or
-  "null" region in the output grid.
-* Continuous Fallback: For applications requiring a
-  continuous signal, if the support window is empty, the
-  implementation may fallback to a nearest-neighbor search
-  or linear interpolation to fill the gap.
-* Edge Handling: The binning pass may extend the regular
-  grid to include cells that are within the support radius
-  in order to avoid special edge handling cases.
-
-Aliasing and Bandwidth:
-
-The Lanczos kernel assumes the input is a band-limited
-signal sampled at or above the Nyquist rate. With irregular
-spacing, this assumption is not guaranteed. The quality of
-the result depends heavily on the local sampling density. In
-areas where samples are sparse, the kernel may fail to
-capture high-frequency features, leading to artifacts.
-
-Computational Cost:
-
-Processing irregular data is significantly more expensive
-than regular data because:
-
-* Search Overhead: The algorithm must locate which irregular
-  samples xi fall within the support window of the output
-  point j. This is typically handled by binning samples
-  into a spatial data structure.
-* No Precomputation: Since the distances between samples are
-  arbitrary, the Lanczos coefficients cannot be precomputed
-  into a repeating lookup table.
-* Density Compensation: Extra processing is required to
-  normalize density for irregularly spaced samples.
 
 Example: 1D Sine Test
 ---------------------
