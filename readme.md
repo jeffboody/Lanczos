@@ -131,8 +131,7 @@ xj.
 	i0 = floor(-fs*a + 1 + (xj - floor(xj)))
 	i1 = floor(fs*a + (xj - floor(xj)))
 
-Sample Positions
-----------------
+Sample Positions:
 
 When resampling a signal from n1 samples to n2 samples the
 following sample positions are used. The index j is used to
