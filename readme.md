@@ -193,80 +193,70 @@ Multidimensional Interpolation
 ------------------------------
 
 The Lanczos kernel can be extended to multiple dimensions to
-perform interpolation on images or higher-dimensional data.
-
-The two-dimensional Lanczos kernel is defined as:
-
-	L(x, y) = sinc(sqrt(x^2 + y^2))*sinc(sqrt(x^2 + y^2)/a)
-
-The interpolated signal s2 can be calculated using the
-following formula:
-
-	s2(x, y) = (1/w(x, y))*
-	           SUM(i = i0, i = i1,
-	               SUM(j = j0, j = j1,
-	                   s1(floor(x) + j, floor(y) + i)*
-	                   L((j - x + floor(x))/fs,
-	                     (i - y + floor(y))/fs)))
-
-Where w(x, y) is the normalization factor calculated using
-the two-dimensional Lanczos kernel.
+perform interpolation on images, volumetric data, or
+higher-dimensional signals. While full multidimensional
+Lanczos equations exist that operate simultaneously across
+all dimensions using radial distance, they carry significant
+computational overhead and are rarely used in practical
+implementations. Instead, multidimensional resampling is
+commonly performed using separable approximations.
 
 Separability
 ------------
 
-Unlike some interpolation methods, the Lanczos kernel is
-non-separable, meaning it cannot be factored into the
-product of one-dimensional kernels. This property generally
-leads to higher computational costs compared to separable
-kernels. To improve performance, some implementations
-approximate the Lanczos kernel by performing separate passes
-for the horizontal and vertical dimensions.
+To improve performance, practical implementations
+approximate multidimensional Lanczos filtering by applying
+the one-dimensional kernel sequentially along each axis
+(e.g., horizontal, vertical, and depth passes).
 
-Horizontal Interpolation:
+Horizontal Interpolation (X-axis):
 
-* Apply the one-dimensional Lanczos kernel to each row of
-  the input signal s1.
-* This produces an intermediate result, s2.
+Apply the 1D Lanczos kernel along each row of the input
+signal s1 to produce intermediate result s2.
 
-Vertical Interpolation:
+	s2(x, y, z) = (1/w(x))*
+	              SUM(i = i0, i = i1,
+	                  s1(floor(x) + i, y, z)*
+	                  L((i - x + floor(x))/fs))
 
-* Apply the one-dimensional Lanczos kernel to each column of
-  the intermediate result s2.
-* This produces the final interpolated signal, s3.
+Vertical Interpolation (Y-axis):
 
-Mathematical Representation:
+Apply the 1D Lanczos kernel along each column of the input
+signal s2 to produce intermediate result s3.
 
-	s2(x, y) = (1/w(x))*
-	           SUM(j = j0, j = j1,
-	               s1(floor(x) + j, y)*
-	               L((j - x + floor(x))/fs))
+	s3(x, y, z) = (1/w(y))*
+	              SUM(j = j0, j = j1,
+	                  s2(x, floor(y) + j, z)*
+	                  L((j - y + floor(y))/fs))
 
-	s3(x, y) = (1/w(y))*
-	           SUM(i = i0, i = i1,
-	               s2(x, floor(y) + i)*
-	               L((i - y + floor(y))/fs))
+Depth Interpolation (Z-axis):
 
-Note that the normalization factors w(x) and w(y) are
-calculated using the one-dimensional Lanczos kernel.
+Apply the 1D Lanczos kernel along the depth axis of s3 to
+produce the final interpolated signal s4.
+
+	s4(x, y, z) = (1/w(z))*
+	              SUM(k = k0, k = k1,
+	                  s3(x, y, floor(z) + k)*
+	                  L((k - z + floor(z))/fs))
+
+Note that the normalization factors w(x), w(y), and w(z) are
+calculated independently using the one-dimensional Lanczos
+kernel for each respective axis.
 
 Key Points:
 
-* The separable approximation significantly reduces
-  computational cost compared to the full two-dimensional
-  Lanczos interpolation.
-* However, it introduces artifacts due to the loss of
-  information from the non-separable components of the
-  Lanczos kernel.
-* The choice between the full Lanczos interpolation and the
-  separable approximation depends on the specific
-  application's requirements for quality and computational
-  efficiency.
-
-Similarly, recursively resampling a signal multiple times,
-as commonly done for generating texture mipmaps, can also
-degrade image quality due to the accumulation of errors
-from each resampling step.
+* Efficiency: The separable approximation reduces the time
+  complexity for an N-dimensional kernel of support size 'a'
+  from O((2*a)^N) per output sample down to O(N*2*a).
+* Trade-offs: Separable filtering introduces minor
+  rotational anisotropic artifacts compared to the full
+  multidimensional Lanczos interpolation, but the massive
+  gain in performance makes it the standard approach in
+  practice.
+* Cumulative Errors: Recursively resampling a signal
+  multiple times (such as generating texture mipmap chains)
+  degrades signal quality due to error accumulation at each
+  sequential pass.
 
 Precomputed Kernel Optimization
 -------------------------------
