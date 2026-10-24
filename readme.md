@@ -66,7 +66,7 @@ Blinn's finding that the Lanczos kernel with a = 3 offers an
 excellent balance of low-frequency preservation and
 high-frequency rejection supports this notion.
 
-Note: The terms "kernel width," "support size," and
+Note: The terms "support size," "kernel width," and
 "filter size" are often used interchangeably to describe the
 parameter a. However, in the context of Lanczos resampling,
 "support size" most accurately reflects the concept.
