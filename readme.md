@@ -212,9 +212,9 @@ the one-dimensional kernel sequentially along each axis
 Horizontal Interpolation (X-axis):
 
 Apply the 1D Lanczos kernel along each row of the input
-signal s1 to produce intermediate result s2.
+signal s1 to produce intermediate result sx.
 
-	s2(x, y, z) = (1/w(x))*
+	sx(x, y, z) = (1/w(x))*
 	              SUM(i = i0, i = i1,
 	                  s1(floor(x) + i, y, z)*
 	                  L((i - x + floor(x))/fs))
@@ -222,21 +222,21 @@ signal s1 to produce intermediate result s2.
 Vertical Interpolation (Y-axis):
 
 Apply the 1D Lanczos kernel along each column of the input
-signal s2 to produce intermediate result s3.
+signal sx to produce intermediate result sy.
 
-	s3(x, y, z) = (1/w(y))*
+	sy(x, y, z) = (1/w(y))*
 	              SUM(j = j0, j = j1,
-	                  s2(x, floor(y) + j, z)*
+	                  sx(x, floor(y) + j, z)*
 	                  L((j - y + floor(y))/fs))
 
 Depth Interpolation (Z-axis):
 
-Apply the 1D Lanczos kernel along the depth axis of s3 to
-produce the final interpolated signal s4.
+Apply the 1D Lanczos kernel along the depth axis of sy to
+produce the final interpolated signal s2.
 
-	s4(x, y, z) = (1/w(z))*
+	s2(x, y, z) = (1/w(z))*
 	              SUM(k = k0, k = k1,
-	                  s3(x, y, floor(z) + k)*
+	                  sy(x, y, floor(z) + k)*
 	                  L((k - z + floor(z))/fs))
 
 Note that the normalization factors w(x), w(y), and w(z) are
