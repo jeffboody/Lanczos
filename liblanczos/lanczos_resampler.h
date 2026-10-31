@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025 Jeff Boody
+ * Copyright (c) 2026 Jeff Boody
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -21,9 +21,26 @@
  *
  */
 
-#ifndef lanczos_kernel_H
-#define lanczos_kernel_H
+#ifndef lanczos_resampler_H
+#define lanczos_resampler_H
 
-float lanczos_kernel(float x, float a);
+#include "lanczos_param.h"
+#include "lanczos_signal.h"
+
+typedef struct
+{
+	float*           lcoef;
+	float*           w;
+	lanczos_signal_t sx;
+	lanczos_signal_t sy;
+} lanczos_resampler_t;
+
+lanczos_resampler_t* lanczos_resampler_new(void);
+void                 lanczos_resampler_delete(lanczos_resampler_t** _self);
+void                 lanczos_resampler_discard(lanczos_resampler_t* self);
+int                  lanczos_resampler_apply(lanczos_resampler_t* self,
+                                             lanczos_param_t* param,
+                                             lanczos_signal_t* s1,
+                                             lanczos_signal_t* s2);
 
 #endif

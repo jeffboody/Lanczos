@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025 Jeff Boody
+ * Copyright (c) 2026 Jeff Boody
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -21,37 +21,30 @@
  *
  */
 
-#include <math.h>
-#include <stdlib.h>
+#ifndef lanczos_param_H
+#define lanczos_param_H
 
-#define LOG_TAG "lanczos"
-#include "../../libcc/cc_log.h"
-#include "lanczos_kernel.h"
+#include <stdint.h>
 
-/*
- * private
- */
-
-static float sinc(float x)
+typedef enum
 {
-	if(x == 0.0f)
-	{
-		return 1.0f;
-	}
+	LANCZOS_EDGE_MODE_ZERO  = 0,
+	LANCZOS_EDGE_MODE_CLAMP = 1,
+} lanczos_edgeMode_e;
 
-	return sinf(M_PI*x)/(M_PI*x);
-}
-
-/*
- * public
- */
-
-float lanczos_kernel(float x, float a)
+typedef enum
 {
-	if((-a < x) && (x < a))
-	{
-		return sinc(x)*sinc(x/a);
-	}
+	LANCZOS_CLAMP_MODE_DISABLE = 0,
+	LANCZOS_CLAMP_MODE_ENABLE  = 1,
+} lanczos_clampMode_e;
 
-	return 0.0f;
-}
+typedef struct
+{
+	uint32_t            a;
+	lanczos_edgeMode_e  edge_mode;
+	lanczos_clampMode_e clamp_mode;
+	float               clamp_min;
+	float               clamp_max;
+} lanczos_param_t;
+
+#endif
