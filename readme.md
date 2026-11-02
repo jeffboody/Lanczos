@@ -81,33 +81,33 @@ convolving the original signal with a Lanczos kernel.
 The interpolated signal s2 is calculated as a weighted sum
 of the original samples:
 
-	s2[j] = (1/wj)*
-	        SUM(i = i0, i = i1, s1(floor(xj) + i)*
-	            L((i - xj + floor(xj))/fs))
+	s2[i] = (1/wi)*
+	        SUM(m = m0, m = m1, s1[floor(xi) + m]*
+	            L((m - xi + floor(xi))/fs))
 
 Preserving Flux:
 
-The normalization factor wj is crucial for preserving
+The normalization factor wi is crucial for preserving
 signal energy (mass). It ensures that the sum of the weights
 equals 1, preventing the interpolated signal from becoming
 globally brighter or darker.
 
-	wj = SUM(i = i0, i = i1, L((i - xj + floor(xj))/fs))
+	wi = SUM(m = m0, m = m1, L((m - xi + floor(xi))/fs))
 
-Upsampling:
+Upsampling (n2 >= n1):
 
-When increasing the sampling rate, the filter scale is equal
-to one since the kernel radius is equal to the support
-radius (e.g. no stretching).
+When increasing or maintaining the sampling rate, the filter
+scale is set to unity since no anti-aliasing blurring is
+required.
 
 	fs = 1
 
 The summation bounds cover a fixed window of 2\*a samples.
 
-	i0 = -a + 1
-	i1 = a
+	m0 = -a + 1
+	m1 = a
 
-Downsampling:
+Downsampling (n2 < n1):
 
 To avoid aliasing artifacts when decreasing the sampling
 rate, the filter scale must be adjusted to match the new
@@ -116,34 +116,33 @@ sampling rate.
 	fs = n1/n2
 
 When the support radius (fs\*a) is an integer value, the
-summation bounds covers a fixed window of 2\*fs\*a samples.
+summation bounds cover a fixed window of 2\*fs\*a samples.
 
-	i0 = -fs*a + 1
-	i1 = fs*a
+	m0 = -fs*a + 1
+	m1 = fs*a
 
 However, when the support radius (fs\*a) is not an integer
-value then the summation bounds requires a dynamic window.
-The dynamic window is required because as xj moves across
-the input signal, the number of integer points covered by
-the stretched kernel may vary depending on the position of
-xj.
+value, the summation bounds require a dynamic window. The
+dynamic window is required because as xi moves across the
+input signal, the number of integer points covered by the
+stretched kernel may vary depending on the position of xi.
 
-	i0 = floor(-fs*a + 1 + (xj - floor(xj)))
-	i1 = floor(fs*a + (xj - floor(xj)))
+	m0 = floor(-fs*a + 1 + (xi - floor(xi)))
+	m1 = floor(fs*a + (xi - floor(xi)))
 
 Sample Positions:
 
 When resampling a signal from n1 samples to n2 samples the
-following sample positions are used. The index j is used to
+following sample positions are used. The index i is used to
 represent the samples from the sampled signal s2. The term
-(j + 0.5) is the center of a sample in s2. The step scales a
-point in s2 to a point in s1. The final -0.5 term in xj is a
+(i + 0.5) is the center of a sample in s2. The step scales a
+point in s2 to a point in s1. The final -0.5 term in xi is a
 phase shift that causes the Lanczos coefficient samples to
 be offset.
 
 	step = n1/n2
-	j    = [0..n2)
-	xj   = (j + 0.5)*step - 0.5
+	i    = [0..n2)
+	xi   = (i + 0.5)*step - 0.5
 
 Edge Handling
 -------------
@@ -156,8 +155,6 @@ techniques include:
   original range.
 * Clamping: Assigning the edge values to samples outside the
   signal boundaries.
-* Mirroring: Reflecting the signal at the boundaries.
-* Repeating: Repeating the edge values multiple times.
 
 Zero Padding:
 
@@ -178,9 +175,10 @@ Output Range
 
 The range of s2 may be greater than that of s1 due to the
 lobes of L(x). For example, an input signal s1 corresponding
-to pixel colors in the range of [0.0,1.0] need to be clamped
-to the same range to ensure that the output values do not
-overflow when converted back to unsigned bytes of [0,255].
+to pixel colors in the range of [0.0,1.0] needs to be
+clamped to the same range to ensure that the output values
+do not overflow when converted back to unsigned bytes of
+[0,255].
 
 Multichannel Data
 -----------------
@@ -214,34 +212,31 @@ Horizontal Interpolation (X-axis):
 Apply the 1D Lanczos kernel along each row of the input
 signal s1 to produce intermediate result sx.
 
-	sx(x, y, z) = (1/w(x))*
-	              SUM(i = i0, i = i1,
-	                  s1(floor(x) + i, y, z)*
-	                  L((i - x + floor(x))/fs))
+	sx[i,j,k] = (1/wi)*
+	            SUM(m = m0, m = m1, s1[floor(xi) + m,j,k]*
+	                L((m - xi + floor(xi))/fs))
 
 Vertical Interpolation (Y-axis):
 
 Apply the 1D Lanczos kernel along each column of the input
 signal sx to produce intermediate result sy.
 
-	sy(x, y, z) = (1/w(y))*
-	              SUM(j = j0, j = j1,
-	                  sx(x, floor(y) + j, z)*
-	                  L((j - y + floor(y))/fs))
+	sy[i,j,k] = (1/wj)*
+	            SUM(m = m0, m = m1, sx[i,floor(yj) + m,k]*
+	                L((m - yj + floor(yj))/fs))
 
 Depth Interpolation (Z-axis):
 
 Apply the 1D Lanczos kernel along the depth axis of sy to
 produce the final interpolated signal s2.
 
-	s2(x, y, z) = (1/w(z))*
-	              SUM(k = k0, k = k1,
-	                  sy(x, y, floor(z) + k)*
-	                  L((k - z + floor(z))/fs))
+	s2[i,j,k] = (1/wk)*
+	            SUM(m = m0, m = m1, sy[i,j,floor(zk) + m]*
+	                L((m - zk + floor(zk))/fs))
 
-Note that the normalization factors w(x), w(y), and w(z) are
-calculated independently using the one-dimensional Lanczos
-kernel for each respective axis.
+Note that the normalization factors (wi, wj, and wk) and
+constants (m0, m1 and fs) are calculated independently for
+the corresponding axis.
 
 Key Points:
 
@@ -275,7 +270,7 @@ coefficients repeat in S phases where each phase includes
 * Resampling Factor: S = n2/n1
 * Total Coefficients: N = S\*2\*a
 * Runtime Logic: The algorithm selects the correct
-  precomputed phase using j % S.
+  precomputed phase using i % S.
 
 Downsampling (Fast Path):
 
