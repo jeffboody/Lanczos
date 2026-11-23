@@ -59,6 +59,64 @@ static float lanczos_kernel(float x, float a)
  */
 
 static int
+lanczos_resampler_resizeLcoef(lanczos_resampler_t* self,
+                              int32_t N)
+{
+	ASSERT(self);
+
+	if(N <= 0)
+	{
+		LOGE("invalid N=%i", N);
+		return 0;
+	}
+
+	size_t size = N*sizeof(float);
+	if(size <= MEMSIZEPTR(self->lcoef))
+	{
+		return 1;
+	}
+
+	float* lcoef = (float*) REALLOC(self->lcoef, size);
+	if(lcoef == NULL)
+	{
+		LOGE("REALLOC failed");
+		return 0;
+	}
+	self->lcoef = lcoef;
+
+	return 1;
+}
+
+static int
+lanczos_resampler_resizeWeights(lanczos_resampler_t* self,
+                                int32_t phases)
+{
+	ASSERT(self);
+
+	if(phases <= 0)
+	{
+		LOGE("invalid phases=%i", phases);
+		return 0;
+	}
+
+	size_t size = phases*sizeof(float);
+	if(size <= MEMSIZEPTR(self->w))
+	{
+		return 1;
+	}
+
+	float* w = (float*) REALLOC(self->w, size);
+	if(w == NULL)
+	{
+		LOGE("REALLOC failed");
+		return 0;
+	}
+	self->w = w;
+
+	return 1;
+}
+
+static int
 lanczos_resampler_applyFastX(lanczos_resampler_t* self,
                              lanczos_param_t* param,
                              lanczos_signal_t* s1,
@@ -66,48 +124,45 @@ lanczos_resampler_applyFastX(lanczos_resampler_t* self,
                              int32_t phases, int32_t N,
                              int32_t fs)
 {
-#if 0
-	// TODO - lanczos_resampler_applyFastX
-	float* lcoef = (float*) CALLOC(N, sizeof(float));
-	if(lcoef == NULL)
+	ASSERT(self);
+	ASSERT(param);
+	ASSERT(s1);
+	ASSERT(s2);
+
+	if((lanczos_resampler_resizeLcoef(self, N) == 0) ||
+	   (lanczos_resampler_resizeWeights(self, phases) == 0))
 	{
-		LOGE("CALLOC failed");
 		return 0;
 	}
 
-	float* wj = (float*) CALLOC(phases, sizeof(float));
-	if(wj == NULL)
-	{
-		LOGE("CALLOC failed");
-		goto fail_wj;
-	}
+	float* lcoef = self->lcoef;
+	float* w     = self->w;
+	float  a     = param->a;
 
-	float xj;
-	float x;
-	float step = ((float) self->n1)/((float) self->n2);
+	float xi;
+	float step = ((float) s1->width)/((float) s2->width);
 
 	// precompute Lanczos kernel coefficients and
 	// normalizing weights
-	int32_t i;
-	int32_t j;
+	int32_t m;
+	int32_t ii;
 	int32_t idx = 0;
-	int32_t i0  = -((int32_t) fs*self->a) + 1;
-	int32_t i1  = (int32_t) fs*self->a;
-	for(j = 0; j < phases; ++j)
+	int32_t m0  = -((int32_t) fs*a) + 1;
+	int32_t m1  = (int32_t) fs*a;
+	for(ii = 0; ii < phases; ++ii)
 	{
-		xj    = (j + 0.5f)*step - 0.5f;
-		wj[j] = 0.0f;
-		for(i = i0; i <= i1; ++i)
+		xi    = (ii + 0.5f)*step - 0.5f;
+		w[ii] = 0.0f;
+		for(m = m0; m <= m1; ++m)
 		{
 			if(idx >= N)
 			{
-				LOGE("invalid idx=%i, N=%u", idx, N);
-				goto fail_precompute;
+				LOGE("invalid idx=%m, N=%u", idx, N);
+				return 0;
 			}
 
-			x          = (i - xj + floorf(xj))/fs;
-			lcoef[idx] = lanczos_kernel(x, self->a);
-			wj[j]     += lcoef[idx];
+			lcoef[idx] = lanczos_kernel((m - xi + floorf(xi))/fs, a);
+			w[ii]     += lcoef[idx];
 			++idx;
 		}
 	}
@@ -115,77 +170,70 @@ lanczos_resampler_applyFastX(lanczos_resampler_t* self,
 	if(idx != N)
 	{
 		LOGE("invalid idx=%i, N=%u", idx, N);
-		goto fail_precompute;
+		return 0;
 	}
 
-	// commpute s2[j]
+	// commpute s2[i2,j,k]
+	int32_t i1;
+	int32_t i2;
+	int32_t j;
+	int32_t k;
 	int32_t ch;
-	int32_t channels = self->channels;
-	int32_t ii;
-	int32_t jj;
-	int32_t xi;
+	int32_t channels = s1->channels;
 	float   sum;
-	float*  s1 = self->s1;
-	float*  s2 = self->s2;
 	for(ch = 0; ch < channels; ++ch)
 	{
 		// reset idx
 		idx = 0;
 
-		for(j = 0; j < self->n2; ++j)
+		for(j = 0; j < s2->height; ++j)
 		{
-			sum = 0.0f;
-			jj  = j%phases;
-			xj  = (j + 0.5f)*step - 0.5f;
-			for(i = i0; i <= i1; ++i)
+			for(k = 0; k < s2->depth; ++k)
 			{
-				// Edge Handling
-				xi = ((int32_t) floorf(xj)) + i;
-				if(self->flags & LANCZOS_FLAG_EDGE_ZERO_PADDING)
+				for(i2 = 0; i2 < s2->width; ++i2)
 				{
-					// Zero Padding
-					if((xi < 0) || (xi >= self->n1))
+					sum = 0.0f;
+					ii  = i2%phases;
+					xi  = (i2 + 0.5f)*step - 0.5f;
+					for(m = m0; m <= m1; ++m)
 					{
+						// Edge Handling
+						i1 = ((int32_t) floorf(xi)) + m;
+						if(param->edge_mode == LANCZOS_EDGE_MODE_ZERO)
+						{
+							// Zero Padding
+							if((i1 < 0) || (i1 >= s1->width))
+							{
+								++idx;
+								continue;
+							}
+						}
+						else
+						{
+							// Clamping
+							if(i1 < 0)
+							{
+								i1 = 0;
+							}
+							else if(i1 >= s1->width)
+							{
+								i1 = s1->width - 1;
+							}
+						}
+
+						sum += lanczos_signal_get(s1, ch, i1, j, k)*
+						       lcoef[idx%N];
 						++idx;
-						continue;
 					}
-				}
-				else
-				{
-					// Clamping
-					if(xi < 0)
-					{
-						xi = 0;
-					}
-					else if(xi >= self->n1)
-					{
-						xi = self->n1 - 1;
-					}
-				}
 
-				ii   = idx%N;
-				sum += s1[channels*xi + ch]*lcoef[ii];
-				++idx;
+					// Preserving Flux Normalization
+					lanczos_signal_set(s2, ch, i2, j, k, sum/w[ii]);
+				}
 			}
-
-			// Preserving Flux Normalization
-			s2[channels*j + ch] = sum/wj[jj];
 		}
 	}
 
-	FREE(wj);
-	FREE(lcoef);
-
-	// success
 	return 1;
-
-	// failure
-	fail_precompute:
-		FREE(wj);
-	fail_wj:
-		FREE(lcoef);
-#endif
-	return 0;
 }
 
 static int

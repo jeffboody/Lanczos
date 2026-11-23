@@ -52,31 +52,31 @@ int               lanczos_signal_resize(lanczos_signal_t* self);
 
 static inline float
 lanczos_signal_get(lanczos_signal_t* self,
-                   uint32_t ch, uint32_t x,
-                   uint32_t y, uint32_t z)
+                   uint32_t ch, uint32_t i,
+                   uint32_t j, uint32_t k)
 {
 	ASSERT(self);
 
-	uint32_t sx  = self->channels;
-	uint32_t sy  = sx*self->width;
-	uint32_t sz  = sy*self->height;
-	uint32_t idx = sz*z + sy*y + sx*x + ch;
+	uint32_t si  = self->channels;
+	uint32_t sj  = si*self->width;
+	uint32_t sk  = sj*self->height;
+	uint32_t idx = sk*k + sj*j + si*i + ch;
 
 	return self->data[idx];
 }
 
 static inline void
 lanczos_signal_set(lanczos_signal_t* self,
-                   uint32_t ch, uint32_t x,
-                   uint32_t y, uint32_t z,
+                   uint32_t ch, uint32_t i,
+                   uint32_t j, uint32_t k,
                    float val)
 {
 	ASSERT(self);
 
-	uint32_t sx  = self->channels;
-	uint32_t sy  = sx*self->width;
-	uint32_t sz  = sy*self->height;
-	uint32_t idx = sz*z + sy*y + sx*x + ch;
+	uint32_t si  = self->channels;
+	uint32_t sj  = si*self->width;
+	uint32_t sk  = sj*self->height;
+	uint32_t idx = sk*k + sj*j + si*i + ch;
 
 	self->data[idx] = val;
 }
