@@ -268,8 +268,6 @@ lanczos_resampler_applySlowX(lanczos_resampler_t* self,
 {
 	ASSERT(self);
 
-#if 0
-	// TODO - lanczos_resampler_applySlowX
 	float fs = 1.0f;
 	if(s2->width < s1->width)
 	{
@@ -277,66 +275,71 @@ lanczos_resampler_applySlowX(lanczos_resampler_t* self,
 	}
 
 	float step = ((float) s1->width)/((float) s2->width);
+	float a    = param->a;
 
-	// commpute s2[j]
+	// commpute s2[i2,j,k]
 	int32_t ch;
 	int32_t channels = s1->channels;
-	int32_t j;
-	int32_t i;
-	int32_t i0;
 	int32_t i1;
-	int32_t xi;
+	int32_t i2;
+	int32_t j;
+	int32_t k;
+	int32_t m;
+	int32_t m0;
+	int32_t m1;
 	float   sum;
-	float   xj;
-	float   wj;
+	float   xi;
+	float   w;
 	float   lcoef;
-	float*  d1 = s1->data;
-	float*  d2 = s2->data;
 	for(ch = 0; ch < channels; ++ch)
 	{
-		for(j = 0; j < s2->width; ++j)
+		for(j = 0; j < s2->height; ++j)
 		{
-			sum = 0.0f;
-			wj  = 0.0f;
-			xj  = (j + 0.5f)*step - 0.5f;
-			i0 = (int32_t) floorf(-fs*self->a + 1 + (xj - floorf(xj)));
-			i1 = (int32_t) floorf(fs*self->a + (xj - floorf(xj)));
-			for(i = i0; i <= i1; ++i)
+			for(k = 0; k < s2->depth; ++k)
 			{
-				// Edge Handling
-				xi = ((int32_t) floorf(xj)) + i;
-				if(self->flags & LANCZOS_FLAG_EDGE_ZERO_PADDING)
+				for(i2 = 0; i2 < s2->width; ++i2)
 				{
-					// Zero Padding
-					if((xi < 0) || (xi >= self->n1))
+					sum = 0.0f;
+					w   = 0.0f;
+					xi  = (i2 + 0.5f)*step - 0.5f;
+					m0 = (int32_t) floorf(-fs*a + 1 + (xi - floorf(xi)));
+					m1 = (int32_t) floorf(fs*a + (xi - floorf(xi)));
+					for(m = m0; m <= m1; ++m)
 					{
-						continue;
-					}
-				}
-				else
-				{
-					// Clamping
-					if(xi < 0)
-					{
-						xi = 0;
-					}
-					else if(xi >= self->n1)
-					{
-						xi = self->n1 - 1;
-					}
-				}
+						// Edge Handling
+						i1 = ((int32_t) floorf(xi)) + m;
+						if(param->edge_mode == LANCZOS_EDGE_MODE_ZERO)
+						{
+							// Zero Padding
+							if((i1 < 0) || (i1 >= s1->width))
+							{
+								continue;
+							}
+						}
+						else
+						{
+							// Clamping
+							if(i1 < 0)
+							{
+								i1 = 0;
+							}
+							else if(i1 >= s1->width)
+							{
+								i1 = s1->width - 1;
+							}
+						}
 
-				lcoef = lanczos_kernel((i - xj + floor(xj))/fs,
-				                       self->a);
-				sum  += d1[channels*xi + ch]*lcoef;
-				wj   += lcoef;
+						lcoef = lanczos_kernel((m - xi + floor(xi))/fs, a);
+						sum += lanczos_signal_get(s1, ch, i1, j, k)*lcoef;
+						w   += lcoef;
+					}
+
+					// Preserving Flux Normalization
+					lanczos_signal_set(s2, ch, i2, j, k, sum/w);
+				}
 			}
-
-			// Preserving Flux Normalization
-			d2[channels*j + ch] = sum/wj;
 		}
 	}
-#endif
 
 	return 1;
 }
