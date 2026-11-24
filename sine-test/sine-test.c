@@ -28,7 +28,7 @@
 #define LOG_TAG "lanczos"
 #include "libcc/cc_log.h"
 #include "libcc/cc_memory.h"
-#include "liblanczos/lanczos_regular1D.h"
+#include "liblanczos/lanczos_resampler.h"
 
 /***********************************************************
 * public                                                   *
@@ -42,100 +42,110 @@ int main(int argc, const char** argv)
 		return EXIT_FAILURE;
 	}
 
-	lanczos_regular1D_t param =
+	lanczos_resampler_t resampler = { 0 };
+
+	lanczos_param_t param =
 	{
-		.flags    = 0,
-		.a        = (int32_t) strtol(argv[1], NULL, 0),
-		.channels = 1,
-		.n1       = (int32_t) strtol(argv[2], NULL, 0),
-		.n2       = (int32_t) strtol(argv[3], NULL, 0),
+		.a          = (uint32_t) strtol(argv[1], NULL, 0),
+		.edge_mode  = LANCZOS_EDGE_MODE_CLAMP,
+		.clamp_mode = LANCZOS_CLAMP_MODE_ENABLE,
+		.clamp_min  = -1.0f,
+		.clamp_max  = 1.0f,
 	};
 
-	param.s1 = (float*) CALLOC(param.n1, sizeof(float));
-	if(param.s1 == NULL)
+	uint32_t channels = 1;
+	uint32_t n1       = (uint32_t) strtol(argv[2], NULL, 0);
+	uint32_t n2       = (uint32_t) strtol(argv[3], NULL, 0);
+
+	lanczos_signal_t* s1;
+	s1 = lanczos_signal_new(channels, n1, 1, 1);
+	if(s1 == NULL)
 	{
-		LOGE("CALLOC failed");
-		return EXIT_FAILURE;
+		goto fail_s1;
 	}
 
-	param.s2 = (float*) CALLOC(param.n2, sizeof(float));
-	if(param.s2 == NULL)
+	lanczos_signal_t* s2;
+	s2 = lanczos_signal_new(channels, n2, 1, 1);
+	if(s2 == NULL)
 	{
-		LOGE("CALLOC failed");
-		goto fail_dst;
+		goto fail_s2;
 	}
 
 	// generate s1 data
 	float   a;
-	float   b = (float) (param.n1 - 1);
+	float   b = (float) (n1 - 1);
 	int32_t i;
-	for(i = 0; i < param.n1; ++i)
+	uint32_t ch = 0;
+	for(i = 0; i < n1; ++i)
 	{
 		a = (float) i;
-		param.s1[i] = sinf(2.0f*M_PI*a/b);
+		lanczos_signal_set(s1, ch, i, 0, 0, sinf(2.0f*M_PI*a/b));
 	}
 
-	char s1_dat[256];
-	char s2_dat[256];
-	snprintf(s1_dat, 256, "sine-%u-%u.dat",
-	         param.a, param.n1);
-	snprintf(s2_dat, 256, "sine-%u-%u-%u.dat",
-	         param.a, param.n1, param.n2);
+	char s1_name[256];
+	char s2_name[256];
+	snprintf(s1_name, 256, "sine-%u-%u.dat",
+	         param.a, n1);
+	snprintf(s2_name, 256, "sine-%u-%u-%u.dat",
+	         param.a, n1, n2);
 
 	// open data files
-	FILE* fs1_dat = fopen(s1_dat, "w");
-	if(fs1_dat == NULL)
+	FILE* fs1 = fopen(s1_name, "w");
+	if(fs1 == NULL)
 	{
-		LOGE("fopen %s failed", s1_dat);
-		goto fail_fs1_dat;
+		LOGE("fopen %s failed", s1_name);
+		goto fail_fs1;
 	}
 
-	FILE* fs2_dat = fopen(s2_dat, "w");
-	if(fs2_dat == NULL)
+	FILE* fs2 = fopen(s2_name, "w");
+	if(fs2 == NULL)
 	{
-		LOGE("fopen %s failed", s2_dat);
-		goto fail_fs2_dat;
+		LOGE("fopen %s failed", s2_name);
+		goto fail_fs2;
 	}
 
 	// resample data
-	if(lanczos_regular1D_resample(&param) == 0)
+	if(lanczos_resampler_apply(&resampler, &param, s1, s2) == 0)
 	{
 		goto fail_resample;
 	}
 
 	// export s1 data
-	for(i = 0; i < param.n1; ++i)
+	for(i = 0; i < n1; ++i)
 	{
-		fprintf(fs1_dat, "%f %f\n", (float) i, param.s1[i]);
+		fprintf(fs1, "%f %f\n", (float) i,
+		        lanczos_signal_get(s1, ch, i, 0, 0));
 	}
 
 	// export s2 data
-	int32_t j;
-	float   xj;
-	float   step = ((float) param.n1)/
-	               ((float) param.n2);
-	for(j = 0; j < param.n2; ++j)
+	float x;
+	float step = ((float) n1)/((float) n2);
+	for(i = 0; i < n2; ++i)
 	{
-		xj = (j + 0.5f)*step - 0.5f;
-		fprintf(fs2_dat, "%f %f\n", xj, param.s2[j]);
+		x = (i + 0.5f)*step - 0.5f;
+		fprintf(fs2, "%f %f\n", (float) x,
+		        lanczos_signal_get(s2, ch, i, 0, 0));
 	}
 
-	fclose(fs2_dat);
-	fclose(fs1_dat);
-	FREE(param.s2);
-	FREE(param.s1);
+	fclose(fs2);
+	fclose(fs1);
+	lanczos_signal_delete(&s2);
+	lanczos_signal_delete(&s1);
+	lanczos_resampler_discard(&resampler);
 
 	// success
 	return EXIT_SUCCESS;
 
 	// failure
 	fail_resample:
-		fclose(fs2_dat);
-	fail_fs2_dat:
-		fclose(fs1_dat);
-	fail_fs1_dat:
-		FREE(param.s2);
-	fail_dst:
-		FREE(param.s1);
+		fclose(fs2);
+	fail_fs2:
+		fclose(fs1);
+	fail_fs1:
+		lanczos_signal_delete(&s2);
+	fail_s2:
+		lanczos_signal_delete(&s1);
+	fail_s1:
+		lanczos_resampler_discard(&resampler);
 	return EXIT_FAILURE;
 }
